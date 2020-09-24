@@ -2,7 +2,7 @@
 
 Download files location (default): `/youtube-dl/`
 
-Web gui :` http://{{host}}:8080/youtube-dl`
+Web gui : `http://{{host}}:8080/youtube-dl`
 
 # [`live-dl`](https://github.com/sparanoid/live-dl)
 
