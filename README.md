@@ -17,3 +17,18 @@ Download [config.example.yml](https://github.com/herowinb/live-dl/blob/master/co
 Use live-dl
 
 <img src="https://i.imgur.com/5uFLJtr.png">
+
+You can run this script in background:
+
+```shell
+# Start process
+nohup bash live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg &>/tmp/live-dl-minatoaqua.log &
+
+# View processes
+ps aux | grep live-dl
+501 94552   964   0  9:38PM ttys009    0:00.06 bash live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg
+501 94765   964   0  9:39PM ttys009    0:00.00 grep live-dl
+
+# Stop process
+kill 94552
+```
