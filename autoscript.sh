@@ -1,6 +1,5 @@
 #!/bin/bash
-
-#nohup /bin/bash /usr/src/app/live-dl https://www.youtube.com/channel/UCP0BspO_AMEe3aQqqpo89Dg &>/tmp/live-dl-moona.log &
+find /usr/src/app/Auto/ -maxdepth 1 -type f -exec bash {} \;
 
 while true; do
   sleep 1000

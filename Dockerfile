@@ -26,7 +26,8 @@ WORKDIR /usr/src/app
 
 COPY . /usr/src/app
 RUN chmod a+x /usr/src/app/live-dl \
-	&& chmod +x /usr/src/app/autoscript.sh
+	&& chmod +x /usr/src/app/autoscript.sh \
+	&& chmod +x /usr/src/app/Auto/
 
 EXPOSE 8080
 
