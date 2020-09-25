@@ -25,10 +25,12 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
 COPY . /usr/src/app
-RUN chmod a+rwx /usr/src/app/live-dl
+RUN chmod a+x /usr/src/app/live-dl \
+	&& chmod +x /usr/src/app/autoscript.sh
 
 EXPOSE 8080
 
 VOLUME ["/youtube-dl"]
 
 CMD [ "python", "-u", "./youtube-dl-server.py" ]
+CMD [ "/usr/src/app/autoscript.sh" ]
