@@ -36,3 +36,18 @@ ps aux | grep live-dl
 # Stop process
 kill 94552
 ```
+# Docker Desktop for Windows Stable (Docker Desktop Community 2.4.0.0)
+
+Get [Docker install pack](https://www.docker.com/products/docker-desktop) and [WSL2 update](https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi).
+After install WSL2 and Docker, open CMD and type `docker pull herowinb/live-dl:latest` to get latest version from Docker Hub.
+
+Create 1 folder for download files. Download and unzip [source code](https://github.com/herowinb/live-dl/archive/master.zip) rename (or edit your config) `config.example.yml` to `config.yml`, edit `example.sh` in `Auto` folder to monitor and download live stream.
+
+Open Docker Dashboard, check downloaded images in LOCAL, click Run and add some Optional Settings
+
+<img src="https://i.imgur.com/lj0WQw7.png">
+
+<img src="https://i.imgur.com/lbFtmN3.png">
+
+CLI
+<img src="https://i.imgur.com/uVssi9f.png">
