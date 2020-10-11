@@ -159,8 +159,24 @@ while [ $# -gt 0 ]; do
       PARAM_SKIP_TELEGRAM=true
       shift
       ;;
+    --callback)
+      PARAM_CALLBACK=true
+      PARAM_CALLBACK_EXEC="$2"
+      shift
+      shift
+      ;;
+    --address-pool)
+      PARAM_ADDRESS_POOL=true
+      PARAM_ADDRESS_POOL_FILE="$2"
+      shift
+      shift
+      ;;
     -1|--once)
       PARAM_ONE_TIME=true
+      shift
+      ;;
+    --image-proxy)
+      PARAM_IMAGE_PROXY=true
       shift
       ;;
     *) # other unknown options
@@ -399,6 +415,45 @@ function func_create_url() {
   fi
 }
 
+function func_gen_curl_address_param() {
+  if [[ "$ADDRESS_POOL" == "true" && "$ADDRESS_POOL_FILE" != "/dev/null" ]]; then
+    local ip=$(shuf -n 1 "${ADDRESS_POOL_FILE}")
+    echo "--interface ${ip}"
+  else
+    echo ""
+  fi
+}
+
+function func_gen_youtube_dl_address_param() {
+  if [[ "$ADDRESS_POOL" == "true" && "$ADDRESS_POOL_FILE" != "/dev/null" ]]; then
+    local ip=$(shuf -n 1 "${ADDRESS_POOL_FILE}")
+    echo "--source-address ${ip}"
+  else
+    echo ""
+  fi
+}
+
+function func_get_actual_video_url_of_live() {
+  local _url=$1
+  local regex="https:\/\/www.youtube.com\/channel\/(.+)\/live"
+  if [[ "$_url" =~ $regex ]] ; then
+    local CHANNEL_ID="${BASH_REMATCH[1]}"
+
+    # Get video url
+    local _url="https://www.youtube.com/embed/live_stream?channel=${CHANNEL_ID}"
+    local regex='.+?<link rel="canonical" href="(.+)">.+'
+
+    local address_param=$(func_gen_curl_address_param)
+    local _body=$(curl $address_param -s --compressed -H "User-Agent: $USER_AGENT" "$_url")
+
+    [[ "$_body" =~ $regex ]]
+    local VIDEO_URL="${BASH_REMATCH[1]%%\"*}"
+    echo "$VIDEO_URL"
+  else
+    echo "$_url"
+  fi
+}
+
 function func_check_state() {
   local _url=$1
   local _mode=$2
@@ -424,7 +479,11 @@ function func_check_state() {
   # - More ban-proof compared to youtube-dl
   # Cons:
   # - Can get wrong live state due to page caching, network interrupts, etc.
-  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" "$_url")
+  local address_param=$(func_gen_curl_address_param)
+  if [ "$address_param" ]; then
+    __info "using address: ${address_param##* }"
+  fi
+  local _body=$(curl $address_param -s --compressed -H "User-Agent: $USER_AGENT" "$_url")
 
   METADATA_CURL=`echo "$_body" | grep '"ytInitialPlayerResponse"' | perl -pe 's/^.*?(\{".*}).*/\1/g' | jq -r .`
 
@@ -574,9 +633,17 @@ function func_check_state() {
       ([ "$CONTENT_STATE" == "offline" ] && [ "$_mode" == "lazy" ])
     then
       __info "Re-checking via youtube-dl..."
+
+      local _url=$(func_get_actual_video_url_of_live "$_url")
+      __info "Get real video url: $_url"
+      local _youtube_dl_address_param=$(func_gen_youtube_dl_address_param)
+      if [ "$_youtube_dl_address_param" ]; then
+        __info "using address: ${_youtube_dl_address_param##* }"
+      fi
       METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 \
-        --skip-download --print-json --force-ipv4 --referer 'https://www.youtube.com/feed/subscriptions' \
+        --skip-download --print-json --referer 'https://www.youtube.com/feed/subscriptions' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
+        ${_youtube_dl_address_param} \
         "$_url" 2>&1`
 
       # Check if returns nothing
@@ -885,7 +952,7 @@ function func_send_telegram() {
                 ],
                 [
                   {"text": "View channel", "url": "'"$CHANNEL_URL"'"},
-                  {"text": "View artwork", "url": "'"$IMAGE_PROXY$THUMBNAIL_CALC"'"}
+                  {"text": "View artwork", "url": "'"$IMAGE_PROXY_BASE$THUMBNAIL_CALC"'"}
                 ]
               ]
             },
@@ -1005,18 +1072,43 @@ function func_prepare_dir() {
   [ -d "$_dir" ] || mkdir -p "$_dir"
 }
 
+function func_create_file_name() {
+  # Output $file_base_name.X if $file_base_name$EXTENSION exists.
+  # prevents the 6hr overwrite issue.
+
+  local file_base_name="${1:-$FILENAME}"
+  local output_dir="${2:-$OUTPUT_BASE}"
+
+  if [ -f "$output_dir/${file_base_name}${EXTENSION}" ] || \
+     [ -f "$output_dir/${file_base_name}.mp4" ] || \
+     [ -f "$output_dir/${file_base_name}.log" ] || \
+     [ -f "$output_dir/${file_base_name}.jpg" ] || \
+     [ -f "$output_dir/${file_base_name}.finished" ]
+  then
+    local -i NUM_POSTFIX=1
+    while [ -f "$output_dir/${file_base_name}.${NUM_POSTFIX}${EXTENSION}" ]; do
+      let NUM_POSTFIX+=1
+    done
+    echo "${file_base_name}.${NUM_POSTFIX}"
+  else
+    echo $file_base_name
+  fi
+}
+
 function func_finalize_vars() {
   # Output preffix dir (without user base dir)
   # Also I replace slash with underscores here to avoid nesting directories
   # i.e.
   # 天宮 こころ / Kokoro Amamiya 【にじさんじ所属】 will become:
   # 天宮 こころ／Kokoro Amamiya 【にじさんじ所属】
+  EXTENSION=".ts"
   FILENAME_BASE=$(echo "$UPLOADER" | sed "s/\//／/" | sed "s/ ／ /／/")
 
   # Output base without filename
   OUTPUT_BASE="$BASE_DIR/$FILENAME_BASE"
 
   # Full output dir
+  FILENAME=$(func_create_file_name "$FILENAME" "$OUTPUT_BASE")
   OUTPUT_PATH="$OUTPUT_BASE/$FILENAME"
 
   # Write prettified JSON metadata to file
@@ -1089,18 +1181,16 @@ function func_download_youtube() {
   if [ "$CONTENT_STATE" == "live" ]; then
     streamlink \
       --force \
-      --http-timeout 180 \
       --hls-live-restart \
       --hls-segment-threads 10 \
-      --hls-segment-timeout 120 \
-      --hls-segment-attempts 300 \
+      --hls-segment-timeout 10 \
+      --hls-segment-attempts 10 \
       --hls-segment-ignore-names preloading \
       --hls-playlist-reload-attempts 30 \
-      --hls-live-edge 5 \
       --hls-timeout 90 \
       --ringbuffer-size 256M \
       --loglevel trace \
-      -o "$OUTPUT_PATH.ts" \
+      -o "${OUTPUT_PATH}${EXTENSION}" \
       "${WEBPAGE_URL}" best >> "$OUTPUT_PATH.log" 2>&1
   elif [ "$CONTENT_STATE" == "video" ]; then
     if [ "$DL_TYPE" == "playlist" ]; then
@@ -1121,7 +1211,6 @@ function func_download_youtube() {
         --sub-lang en,zh-Hans,zh-Hant,ja \
         --sub-format best \
         --embed-subs \
-        --force-ipv4 \
         --retries 30 \
         -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
         "${WEBPAGE_URL}"
@@ -1135,7 +1224,6 @@ function func_download_youtube() {
         --write-sub \
         --sub-lang en,zh-Hans,zh-Hant,ja \
         --sub-format best \
-        --force-ipv4 \
         --retries 30 \
         -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
         "${WEBPAGE_URL}"
@@ -1155,12 +1243,12 @@ function func_finalize_download() {
   if [ "$CONTENT_STATE" == "live" ]; then
     # Convert from TS to MP4 (will override existing with -y option)
     __info "Converting to MP4"
-    ffmpeg -i "$OUTPUT_PATH.ts" -y \
+    ffmpeg -i "${OUTPUT_PATH}${EXTENSION}" -y \
       -codec copy \
       "$OUTPUT_PATH.mp4" >> "$OUTPUT_PATH.log" 2>&1
 
     # Remove original TS file
-    rm -f "$OUTPUT_PATH.ts"
+    rm -f "${OUTPUT_PATH}${EXTENSION}"
   fi
 
   if [ ! "$SKIP_METADATA" ]; then
@@ -1239,6 +1327,18 @@ Path:      $HOSTNAME:$OUTPUT_PATH.mp4
   sleep 10
 }
 
+function func_callback() {
+  if [ $CALLBACK == "true" ]; then
+    if [ $CALLBACK_EXEC != "/dev/null" ]; then 
+      __info "Calling callback function..."
+      local cmd=( "$CALLBACK_EXEC" "${OUTPUT_PATH}.mp4" "$BASE_DIR/" "$VIDEO_ID" "$FULLTITLE" "$UPLOADER" "$UPLOAD_DATE" )
+      nohup "${cmd[@]}" &>> "$OUTPUT_PATH.log" &
+    else
+      __info "$(__yellow "No callback executable specified.")"
+    fi
+  fi
+}
+
 #
 # Executes
 #
@@ -1279,8 +1379,11 @@ Options:
   --skip-email                Skip sending email notification
   --skip-slack                Skip sending Slack notification
   --skip-telegram             Skip sending Telegram notification
+  --callback [EXECUTABLE]     Run the callback after videos downloaded
+  --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error          
   --once, -1                  Run only once, default: false
-  --debug                     Show debug logs, default: false"
+  --debug                     Show debug logs, default: false
+  --image-proxy               Enable image proxy for China users, default: false"
   exit 1
 fi
 
@@ -1310,7 +1413,10 @@ CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.
 CONFIG_SKIP_EMAIL=`echo $CONFIG_RAW | jq -r '.config.skip_email | select(.!=null)'`
 CONFIG_SKIP_SLACK=`echo $CONFIG_RAW | jq -r '.config.skip_slack | select(.!=null)'`
 CONFIG_SKIP_TELEGRAM=`echo $CONFIG_RAW | jq -r '.config.skip_telegram | select(.!=null)'`
+CONFIG_CALLBACK=`echo $CONFIG_RAW | jq -r '.config.run_callback | select(.!=null)'`
+CONFIG_ADDRESS_POOL=`echo $CONFIG_RAW | jq -r '.config.address_pool | select(.!=null)'`
 CONFIG_ONE_TIME=`echo $CONFIG_RAW | jq -r '.config.one_time | select(.!=null)'`
+CONFIG_IMAGE_PROXY=`echo $CONFIG_RAW | jq -r '.config.image_proxy | select(.!=null)'`
 CONFIG_EMAIL_PROVIDER=`echo $CONFIG_RAW | jq -r '.config.email_provider | select(.!=null)'`
 CONFIG_MAILGUN_API=`echo $CONFIG_RAW | jq -r '.config.mailgun.api | select(.!=null)'`
 CONFIG_MAILGUN_DOMAIN=`echo $CONFIG_RAW | jq -r '.config.mailgun.domain | select(.!=null)'`
@@ -1322,6 +1428,8 @@ CONFIG_SES_RECEIPT=`echo $CONFIG_RAW | jq -r '.config.ses.receipt | select(.!=nu
 CONFIG_SLACK_WEBHOOK=`echo $CONFIG_RAW | jq -r '.config.slack.webhook | select(.!=null)'`
 CONFIG_TELEGRAM_BOT=`echo $CONFIG_RAW | jq -r '.config.telegram.bot | select(.!=null)'`
 CONFIG_TELEGRAM_CHANNEL=`echo $CONFIG_RAW | jq -r '.config.telegram.channel | select(.!=null)'`
+CONFIG_CALLBACK_EXEC=`echo $CONFIG_RAW | jq -r '.config.callback.executable | select(.!=null)'`
+CONFIG_ADDRESS_POOL_FILE=`echo $CONFIG_RAW | jq -r '.config.address_pool_file | select(.!=null)'`
 
 MODE="${PARAM_MODE:-$CONFIG_MODE}"
 BASE_DIR="${_PARAM_BASE_DIR:-$CONFIG_BASE_DIR}"
@@ -1332,8 +1440,17 @@ SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
 SKIP_EMAIL="${PARAM_SKIP_EMAIL:-$CONFIG_SKIP_EMAIL}"
 SKIP_SLACK="${PARAM_SKIP_SLACK:-$CONFIG_SKIP_SLACK}"
 SKIP_TELEGRAM="${PARAM_SKIP_TELEGRAM:-$CONFIG_SKIP_TELEGRAM}"
+CALLBACK="${PARAM_CALLBACK:-$CONFIG_CALLBACK}"
+CALLBACK_EXEC="${PARAM_CALLBACK_EXEC:-$CONFIG_CALLBACK_EXEC}"
+ADDRESS_POOL="${PARAM_ADDRESS_POOL:-$CONFIG_ADDRESS_POOL}"
+ADDRESS_POOL_FILE="${PARAM_ADDRESS_POOL_FILE:-$CONFIG_ADDRESS_POOL_FILE}"
 ONE_TIME="${PARAM_ONE_TIME:-$CONFIG_ONE_TIME}"
+IMAGE_PROXY="${PARAM_IMAGE_PROXY:-$CONFIG_IMAGE_PROXY}"
 URL_INPUT="$1"
+
+if [ "IMAGE_PROXY" != "true" ]; then
+  IMAGE_PROXY_BASE=""
+fi
 
 # Print current variables for reference
 __info "URL (URI) to process           : ${URL_INPUT}"
@@ -1346,6 +1463,8 @@ __info "Skip embedding metadata        : ${SKIP_METADATA}"
 __info "Skip email notification        : ${SKIP_EMAIL}"
 __info "Skip Slack notification        : ${SKIP_SLACK}"
 __info "Skip Telegram notification     : ${SKIP_TELEGRAM}"
+__info "Callback                       : ${CALLBACK}"
+__info "Address Pool                   : ${ADDRESS_POOL}"
 __info "Email provider                 : ${CONFIG_EMAIL_PROVIDER}"
 __info "One-time execution             : ${ONE_TIME}"
 
@@ -1407,6 +1526,7 @@ while true; do
         func_download_youtube
         func_finalize_download
         func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM"
+        func_callback
 
       #
       # Mode: metadata only
@@ -1453,6 +1573,7 @@ while true; do
       if [ "$MODE" == "download" ]; then
         func_download_youtube
         func_finalize_download
+        func_callback
         exit 0
       else
         __info "Metadata only mode, no video will be downloaded."
