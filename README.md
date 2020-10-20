@@ -14,7 +14,7 @@ Download [config.example.yml](https://github.com/herowinb/live-dl/blob/master/co
 
 <img src="https://i.imgur.com/MTATZ3K.png">
 
-Download [example.sh](https://github.com/herowinb/live-dl/blob/master/Auto/example.sh), edit, rename, put in to a folder Audo. Now you can run live-dl to monitor and download live stream from your <strike>Waifu</strike> Vtuber.
+Download [example.sh](https://github.com/herowinb/live-dl/blob/master/Auto/example.sh), edit, rename, put in to a folder Audo. Now you can startup `live-dl` to monitor and download upcoming live stream from your <strike>Waifu</strike> Vtuber.
 
 <img src="https://i.imgur.com/CuvMdPr.png">
 
