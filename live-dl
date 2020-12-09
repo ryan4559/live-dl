@@ -189,154 +189,6 @@ done
 # restore positional parameters
 set -- "${POSITIONAL[@]}"
 
-# Install repo for CentOS/RHEL
-function func_add_repo_rhel() {
-  rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
-  rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
-}
-
-# Check dependencies
-function func_check_deps() {
-  __info "Checking dependencies..."
-
-  if command -v ffmpeg >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(ffmpeg -version | head -n 1)"
-  else
-    __info "FFmpeg not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        yum install epel-release -y
-        func_add_repo_rhel
-        yum install ffmpeg -y
-      fi
-      if [ -f /etc/lsb-release ]; then
-        apt-get install ffmpeg -y
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install ffmpeg
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v youtube-dl >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): youtube-dl $(youtube-dl --version | head -n 1)"
-  else
-    __info "youtube-dl not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl
-      chmod a+rx /usr/local/bin/youtube-dl
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install ffmpeg
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v jq >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(jq --version | head -n 1)"
-  else
-    __info "jq not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        yum install epel-release -y
-        yum install jq -y
-      fi
-      if [ -f /etc/lsb-release ]; then
-        apt-get install jq -y
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install jq
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v yq >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(yq --version | head -n 1)"
-  else
-    __info "yq not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        pip install yq
-      fi
-      if [ -f /etc/lsb-release ]; then
-        apt install python-pip
-        pip install yq
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install python-yq
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v exiv2 >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(exiv2 --version | head -n 1)"
-  else
-    __info "exiv2 not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        yum install exiv2 -y
-      fi
-      if [ -f /etc/lsb-release ]; then
-        apt-get install exiv2 -y
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install exiv2
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v aria2c >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(aria2c -v | head -n 1)"
-  else
-    __info "aria2 not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        yum install epel-release -y
-        yum install aria2 -y
-      fi
-      if [ -f /etc/lsb-release ]; then
-        apt-get install aria2 -y
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install aria2
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  if command -v streamlink >/dev/null 2>&1 ; then
-    __info "$(__green "Found"): $(streamlink --version | head -n 1)"
-  else
-    __info "streamlink not found, trying to install..."
-    if [ "$OSTYPE" == "linux-gnu" ]; then
-      if [ -f /etc/redhat-release ]; then
-        pip install streamlink
-      fi
-      if [ -f /etc/lsb-release ]; then
-        add-apt-repository ppa:nilarimogard/webupd8
-        apt install streamlink
-      fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install streamlink
-    else
-      __info "No platform/architecture supported, please install it manually."
-    fi
-  fi
-
-  # Check if we need to create alias
-  if [ ! "$SKIP_ALIAS" ]; then
-    __info "Creating alias..."
-    _profile="$(func_detect_profile)"
-    _cwd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-    _alias="alias live-dl='$_cwd/live-dl'"
-    grep -qxF "$_alias" "$_profile" || echo "$_alias" >> "$_profile"
-  fi
-}
-
 function func_create_url() {
   # Create correct URL/URI based on user input
   #
@@ -444,7 +296,7 @@ function func_get_actual_video_url_of_live() {
     local regex='.+?<link rel="canonical" href="(.+)">.+'
 
     local address_param=$(func_gen_curl_address_param)
-    local _body=$(curl $address_param -s --compressed -H "User-Agent: $USER_AGENT" "$_url")
+    local _body=$(curl $address_param -s -H "User-Agent: $USER_AGENT" "$_url")
 
     [[ "$_body" =~ $regex ]]
     local VIDEO_URL="${BASH_REMATCH[1]%%\"*}"
@@ -483,9 +335,22 @@ function func_check_state() {
   if [ "$address_param" ]; then
     __info "using address: ${address_param##* }"
   fi
-  local _body=$(curl $address_param -s --compressed -H "User-Agent: $USER_AGENT" "$_url")
 
-  METADATA_CURL=`echo "$_body" | grep '"ytInitialPlayerResponse"' | perl -pe 's/^.*?(\{".*}).*/\1/g' | jq -r .`
+  # Passing useragent causes youtube to return the content to one line. Then grep died.
+  local _body=$(curl $address_param -b cookies.txt -s "$_url")
+
+  # Extract metadata from fetched page
+  METADATA_CURL_RAW=`echo "$_body" | grep 'ytInitialPlayerResponse' | head -1`
+
+  # NOTE: Oct 25, 2020
+  # Recently YouTube changes its page to returns `null` for `ytInitialPlayerResponse` when the
+  # channel is not streaming. This makes me easier to tell whether it's live or not.
+  if [[ "$METADATA_CURL_RAW" =~ 'window["ytInitialPlayerResponse"] = null' ]]; then
+    METADATA_CURL="{}"
+    __debug "ytInitialPlayerResponse returns null"
+  else
+    METADATA_CURL=`echo "$METADATA_CURL_RAW" | perl -pe 's/^.*?(\{".*}).*/\1/g' | jq -r .`
+  fi
 
   # Check if returns nothing
   if [ ! -z "$METADATA_CURL" ]; then
@@ -529,6 +394,13 @@ function func_check_state() {
     UPLOADER=$(echo "$METADATA_CURL" | jq -r '.videoDetails.author')
     CHANNEL_ID=$(echo "$METADATA_CURL" | jq -r '.videoDetails.channelId')
 
+    # NOTE: Oct 25, 2020
+    # With recent changes of YouTube API, you cannot get live JSON from a /live channel URL.
+    # This causes empty response during youtube-dl second check. So I redirect channel page check to
+    # video page check after I got the specific video ID.
+    if ([ "$DL_TYPE" == "channel" ] && [ "$DL_PLATFORM" == "YouTube" ]); then
+      _url="https://www.youtube.com/watch?v=$VIDEO_ID"
+    fi
     # If I got `isLive: true` in first check, let me assume it's live but I can't trust it so I
     # will do a secound check using youtube-dl later with this flag.
     if [ "$IS_LIVE" == "true" ]; then
@@ -567,52 +439,6 @@ function func_check_state() {
     __info "$(__yellow "Not a valid page, something wrong with your internet connection?")"
   fi
 
-  # Old method:
-  # if echo "$_body" | grep -q 'ytplayer'; then
-
-  #   # Assume it's not a live streaming page
-  #   IS_LIVE_CONTENT="false"
-
-  #   # Actually there's an official way to check if the streamer is live or not[^1] using YouTube
-  #   # offical Data API, but it's costy that every search request costs you 100 credits. However
-  #   # you can try it online[^2] to see how it works.
-  #   #
-  #   # If you have accounts that registered YouTube developer program before 2017, and has more
-  #   # than 10 million credit quota, you can contact me t@sparanoid.com
-  #   #
-  #   # [1]: https://developers.google.com/youtube/v3/docs/search
-  #   # [2]: https://developers.google.com/youtube/v3/code_samples/code_snippets
-  #   if echo "$_body" | grep 'ytplayer' | grep -q '\\"isLive\\":true'; then
-  #     # Is live, break out of loop and continue to next step
-  #     IS_LIVE_CONTENT="true"
-  #     break
-  #   fi
-
-  #   # Also break out if the given URL is not a channel (probably a video or a playlist)
-  #   # This extra check could avoid downloading an upcoming stream when then "isLive" check above
-  #   # fails for some reason (like YouTube changes the `isLive` JSON key to something else)
-  #   if ! [ "$DL_TYPE" == "channel" ]; then
-  #     # This script now can also handle normal YouTube video, but there's no way to check if the
-  #     # given URL is a normal video or an upcoming stream, so we can just break out of the loop
-  #     # and fallback to youtube-dl to check whelter this URL is downloadable. And make sure it
-  #     # only execute once.
-  #     ONE_TIME="true"
-  #     break
-  #   fi
-
-  # else
-  #   __info "$(__yellow "Not a valid video page!")"
-  #   __info "You may get this warning due to internet interruption, continue running"
-
-  #   # NOTE: Although this is the natural logic to exit the program if we can't find specific
-  #   # element on this page that means it's not a valid video page. But in some rare cases, the
-  #   # original page may be down or unreachable for internet interruption or other network issues.
-  #   # So I decide to let the script continue to execute because this script is mainly focused on
-  #   # recording streams.
-
-  #   # exit 1
-  # fi
-
   # Second check: use `youtube-dl` to check live state
   # NOTE: please avoid adding additional paths in the -o (template) option, it doesn't work well
   # and conflicts with my custom directory setup!
@@ -640,7 +466,7 @@ function func_check_state() {
       if [ "$_youtube_dl_address_param" ]; then
         __info "using address: ${_youtube_dl_address_param##* }"
       fi
-      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 \
+      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "cookies.txt"\
         --skip-download --print-json --referer 'https://www.youtube.com/feed/subscriptions' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
         ${_youtube_dl_address_param} \
