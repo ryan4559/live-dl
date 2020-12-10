@@ -1,5 +1,5 @@
 #!/bin/bash
-find /usr/src/app/Auto/ -maxdepth 1 -type f -exec bash {} \;
+bash /usr/src/app/config/auto.sh
 
 python -u /usr/src/app/youtube-dl-server.py
 

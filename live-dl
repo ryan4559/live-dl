@@ -15,16 +15,8 @@
 # - exiv2
 # - ffmpeg
 # - jq
-# - streamlink
 # - youtube-dl
 # - yq (python-yq)
-#
-
-#
-# Changelog
-#
-# Sep 23, 2019
-# - First release
 #
 
 #
@@ -44,7 +36,7 @@
 # - [x] channel name mapping
 # - [x] download base dir support
 # - [ ] get channel avatar
-# - [ ] upcoming streams detection
+# - [x] upcoming streams detection
 # - [ ] keyword filter
 # - [ ] metadata overriding mode
 # - [x] summary output for uploading
@@ -337,7 +329,7 @@ function func_check_state() {
   fi
 
   # Passing useragent causes youtube to return the content to one line. Then grep died.
-  local _body=$(curl $address_param -b cookies.txt -s "$_url")
+  local _body=$(curl $address_param -b "./config/cookies.txt" -s "$_url")
 
   # Extract metadata from fetched page
   METADATA_CURL_RAW=`echo "$_body" | grep 'ytInitialPlayerResponse' | head -1`
@@ -466,7 +458,7 @@ function func_check_state() {
       if [ "$_youtube_dl_address_param" ]; then
         __info "using address: ${_youtube_dl_address_param##* }"
       fi
-      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "cookies.txt"\
+      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "./config/cookies.txt" \
         --skip-download --print-json --referer 'https://www.youtube.com/feed/subscriptions' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
         ${_youtube_dl_address_param} \
@@ -905,8 +897,7 @@ function func_create_file_name() {
   local file_base_name="${1:-$FILENAME}"
   local output_dir="${2:-$OUTPUT_BASE}"
 
-  if [ -f "$output_dir/${file_base_name}${EXTENSION}" ] || \
-     [ -f "$output_dir/${file_base_name}.mp4" ] || \
+  if [ -f "$output_dir/${file_base_name}.mp4" ] || \
      [ -f "$output_dir/${file_base_name}.log" ] || \
      [ -f "$output_dir/${file_base_name}.jpg" ] || \
      [ -f "$output_dir/${file_base_name}.finished" ]
@@ -927,7 +918,7 @@ function func_finalize_vars() {
   # i.e.
   # 天宮 こころ / Kokoro Amamiya 【にじさんじ所属】 will become:
   # 天宮 こころ／Kokoro Amamiya 【にじさんじ所属】
-  EXTENSION=".ts"
+  EXTENSION=".mp4"
   FILENAME_BASE=$(echo "$UPLOADER" | sed "s/\//／/" | sed "s/ ／ /／/")
 
   # Output base without filename
@@ -1005,19 +996,13 @@ function func_download_youtube() {
   __info "Logging: tail -f \"$OUTPUT_PATH.log\""
 
   if [ "$CONTENT_STATE" == "live" ]; then
-    streamlink \
-      --force \
-      --hls-live-restart \
-      --hls-segment-threads 10 \
-      --hls-segment-timeout 10 \
-      --hls-segment-attempts 10 \
-      --hls-segment-ignore-names preloading \
-      --hls-playlist-reload-attempts 30 \
-      --hls-timeout 90 \
-      --ringbuffer-size 256M \
-      --loglevel trace \
-      -o "${OUTPUT_PATH}${EXTENSION}" \
-      "${WEBPAGE_URL}" best >> "$OUTPUT_PATH.log" 2>&1
+	youtube-dl \
+		--ignore-config \
+		--hls-use-mpegts \
+		--retries 30 \
+		--cookies "./config/cookies.txt" \
+		-o "${OUTPUT_PATH}${EXTENSION}" \
+		"${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
   elif [ "$CONTENT_STATE" == "video" ]; then
     if [ "$DL_TYPE" == "playlist" ]; then
       # TODO: You have to loop over all the videos to add metadata and thumbnail manually.
@@ -1032,12 +1017,9 @@ function func_download_youtube() {
         --external-downloader aria2c \
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
-        --write-auto-sub \
-        --write-sub \
-        --sub-lang en,zh-Hans,zh-Hant,ja \
-        --sub-format best \
-        --embed-subs \
         --retries 30 \
+		--cookies "./config/cookies.txt" \
+		--merge-output-format mp4 \
         -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
         "${WEBPAGE_URL}"
     else
@@ -1046,11 +1028,9 @@ function func_download_youtube() {
         --external-downloader aria2c \
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
-        --write-auto-sub \
-        --write-sub \
-        --sub-lang en,zh-Hans,zh-Hant,ja \
-        --sub-format best \
         --retries 30 \
+		--cookies "./config/cookies.txt" \
+		--merge-output-format mp4 \
         -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
         "${WEBPAGE_URL}"
     fi
@@ -1065,17 +1045,6 @@ function func_download_bilibili() {
 
 function func_finalize_download() {
   __info "Stop downloading"
-
-  if [ "$CONTENT_STATE" == "live" ]; then
-    # Convert from TS to MP4 (will override existing with -y option)
-    __info "Converting to MP4"
-    ffmpeg -i "${OUTPUT_PATH}${EXTENSION}" -y \
-      -codec copy \
-      "$OUTPUT_PATH.mp4" >> "$OUTPUT_PATH.log" 2>&1
-
-    # Remove original TS file
-    rm -f "${OUTPUT_PATH}${EXTENSION}"
-  fi
 
   if [ ! "$SKIP_METADATA" ]; then
     __info "Trying to write metadata and artwork"
@@ -1214,11 +1183,11 @@ Options:
 fi
 
 # Check if we have config.yml
-if ! [ -f config.yml ]; then
+if ! [ -f ./config/config.yml ]; then
   __info "$(__red "No config.yml, 'cp config.example.yml config.yml' and rerun this script.")"
   exit 1;
 else
-  CONFIG_RAW=`cat config.yml | yq -r .`
+  CONFIG_RAW=`cat ./config/config.yml | yq -r .`
 fi
 
 # Set default settings

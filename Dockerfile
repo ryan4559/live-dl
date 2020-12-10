@@ -18,9 +18,7 @@ RUN apk add --no-cache \
 
 RUN pip3 install yq
 
-RUN apk add gcc musl-dev --no-cache \
-	&& pip install streamlink bottle youtube-dl \
-	&& apk del gcc musl-dev --no-cache
+RUN pip install bottle youtube-dl
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
