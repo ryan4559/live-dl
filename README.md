@@ -1,3 +1,8 @@
+# [`Issue found`]
+Currently you cannot use Live-dl (via CLI) to download a live streaming video in progress (www.youtube.com/watch?v=VIDEOID), however you still can download it on the Youtube-dl Web GUI.
+
+Using Live-dl to automatically download the upcoming live stream still works fine (via CLI or auto).
+
 # [`youtube-dl-server`](https://github.com/manbearwiz/youtube-dl-server)
 
 Download files location (default): `/youtube-dl/`
@@ -10,13 +15,11 @@ Download files location (default): `/youtube-dl/VTuber Recordings`
 
 # Volume Map for Sysnology NAS Docker
 
-Download [config.example.yml](https://github.com/herowinb/live-dl/blob/master/config.example.yml) and rename to config.yml.
+Download [Zip](https://github.com/herowinb/live-dl/archive/master.zip) and unzip `Config` folder, rename `config.example.yml` to `config.yml` and edit.
 
-<img src="https://i.imgur.com/MTATZ3K.png">
+Edit`auto.sh`, remove # and change channel URL. Now you can startup `live-dl` to monitor and download upcoming live stream from your <strike>Waifu</strike> Vtuber.
 
-Download [example.sh](https://github.com/herowinb/live-dl/blob/master/Auto/example.sh), edit, rename, put in to a folder Audo. Now you can startup `live-dl` to monitor and download upcoming live stream from your <strike>Waifu</strike> Vtuber.
-
-<img src="https://i.imgur.com/CuvMdPr.png">
+<img src="https://i.imgur.com/kQv3g0W.png">
 
 Use live-dl
 
@@ -41,13 +44,13 @@ kill 94552
 Get [Docker install pack](https://www.docker.com/products/docker-desktop) and [WSL2 update](https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi).
 After install WSL2 and Docker, open CMD and type `docker pull herowinb/live-dl:latest` to get latest version from Docker Hub.
 
-Create 1 folder for download files. Download and unzip [source code](https://github.com/herowinb/live-dl/archive/master.zip) rename (or edit your config) `config.example.yml` to `config.yml`, edit `example.sh` in `Auto` folder to monitor and download live stream.
+Create 1 folder for download files. Download and unzip [Zip](https://github.com/herowinb/live-dl/archive/master.zip), rename (or edit your config) `config.example.yml` to `config.yml` and edit `example.sh` in `config` folder to monitor and download live stream.
 
 Open Docker Dashboard, check downloaded images in LOCAL, click Run and add some Optional Settings
 
 <img src="https://i.imgur.com/lj0WQw7.png">
 
-<img src="https://i.imgur.com/lbFtmN3.png">
+<img src="https://i.imgur.com/QiXxFQl.png">
 
 CLI
 <img src="https://i.imgur.com/uVssi9f.png">
