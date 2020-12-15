@@ -1,8 +1,3 @@
-# [`Issue found`]
-Currently you cannot use Live-dl (via CLI) to download a live streaming video in progress (www.youtube.com/watch?v=VIDEOID), however you still can download it on the Youtube-dl Web GUI.
-
-Using Live-dl to automatically download the upcoming live stream still works fine (via CLI or auto).
-
 # [`youtube-dl-server`](https://github.com/manbearwiz/youtube-dl-server)
 
 Download files location (default): `/youtube-dl/`
