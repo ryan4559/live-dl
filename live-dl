@@ -114,6 +114,11 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
+    --remove_title)
+      PARAM_REMOVE_TITLE="$2"
+      shift
+      shift
+      ;;
     -i|--interval)
       PARAM_INTERVAL="$2"
       shift
@@ -1124,13 +1129,23 @@ Path:      $HOSTNAME:$OUTPUT_PATH.mp4
 
 function func_callback() {
   if [ $CALLBACK == "true" ]; then
-    if [ $CALLBACK_EXEC != "/dev/null" ]; then 
+    if [ $CALLBACK_EXEC != "/dev/null" ]; then
       __info "Calling callback function..."
       local cmd=( "$CALLBACK_EXEC" "${OUTPUT_PATH}.mp4" "$BASE_DIR/" "$VIDEO_ID" "$FULLTITLE" "$UPLOADER" "$UPLOAD_DATE" )
       nohup "${cmd[@]}" &>> "$OUTPUT_PATH.log" &
     else
       __info "$(__yellow "No callback executable specified.")"
     fi
+  fi
+}
+
+function func_remove_title() {
+  if [ $REMOVE_TITLE == "true" ]; then
+      __info "Running remove title function..."
+      for filern in "${OUTPUT_PATH}.mp4"; do extrn="${filern##*(}" ; mv --backup=numbered -v -f "$filern" "$OUTPUT_BASE/$UPLOAD_DATE (${extrn}"; done &
+      >> "$OUTPUT_PATH.log" 2>&1
+  else
+      __info "$(__yellow "No remove title run.")"
   fi
 }
 
@@ -1167,6 +1182,7 @@ Examples:
 Options:
   --mode, -m                  Running mode, default: download, available: metadata, notifier
   --output, -o                Base output directory, default: ~/Downloads
+  --interval                  Remove title after download (some Japanese title video too long so it can not upload)
   --interval, -i              Loop interval, unit: second, default: 10
   --skip-alias, -a            Skip creating program alias to your shell profile
   --skip-check, -c            Skip dependency check, default: false
@@ -1175,7 +1191,7 @@ Options:
   --skip-slack                Skip sending Slack notification
   --skip-telegram             Skip sending Telegram notification
   --callback [EXECUTABLE]     Run the callback after videos downloaded
-  --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error          
+  --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error
   --once, -1                  Run only once, default: false
   --debug                     Show debug logs, default: false
   --image-proxy               Enable image proxy for China users, default: false"
@@ -1201,6 +1217,7 @@ HOME_EXPANDED=$(echo "$HOME" | sed -e 's/\//\\\//g')
 
 CONFIG_MODE=`echo $CONFIG_RAW | jq -r '.config.mode | select(.!=null)'`
 CONFIG_BASE_DIR=`echo $CONFIG_RAW | jq -r .config.output | sed -e 's/~/'"$HOME_EXPANDED"'/g'`
+CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
 CONFIG_SKIP_ALIAS=`echo $CONFIG_RAW | jq -r '.config.skip_alias | select(.!=null)'`
 CONFIG_SKIP_CONVERT=`echo $CONFIG_RAW | jq -r '.config.skip_convert | select(.!=null)'`
@@ -1228,6 +1245,7 @@ CONFIG_ADDRESS_POOL_FILE=`echo $CONFIG_RAW | jq -r '.config.address_pool_file | 
 
 MODE="${PARAM_MODE:-$CONFIG_MODE}"
 BASE_DIR="${_PARAM_BASE_DIR:-$CONFIG_BASE_DIR}"
+REMOVE_TITLE="${PARAM_REMOVE_TITLE:-$CONFIG_REMOVE_TITLE}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
 SKIP_ALIAS="${PARAM_SKIP_ALIAS:-$CONFIG_SKIP_ALIAS}"
 SKIP_CONVERT="${PARAM_SKIP_CONVERT:-$CONFIG_SKIP_CONVERT}"
@@ -1251,6 +1269,7 @@ fi
 __info "URL (URI) to process           : ${URL_INPUT}"
 __info "Mode                           : ${MODE}"
 __info "Output base dir                : ${BASE_DIR}"
+__info "Remove Title                   : ${REMOVE_TITLE}"
 __info "Run interval (when loop)       : ${INTERVAL}"
 __info "Skip script alias              : ${SKIP_ALIAS}"
 __info "Skip convert                   : ${SKIP_CONVERT}"
@@ -1315,13 +1334,14 @@ while true; do
         # Send notifications
         # https://stackoverflow.com/a/49819711/412385
         _break=$'\n\n'
-        func_send_email "🔴 [YouTube] $UPLOADER - $FULLTITLE" "$SUMMARY_TRIM$_break$DESCRIPTION"
-        func_send_slack "start"
-        func_send_telegram "start"
+        func_send_email "🔴 [YouTube] $UPLOADER - $FULLTITLE" "$SUMMARY_TRIM$_break$DESCRIPTION" &
+        func_send_slack "start" &
+        func_send_telegram "start" &
         func_download_youtube
         func_finalize_download
-        func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM"
+        func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
         func_callback
+        func_remove_title
 
       #
       # Mode: metadata only
@@ -1369,6 +1389,7 @@ while true; do
         func_download_youtube
         func_finalize_download
         func_callback
+        func_remove_title
         exit 0
       else
         __info "Metadata only mode, no video will be downloaded."
