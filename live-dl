@@ -114,7 +114,7 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
-    --remove_title)
+    -rt|--remove_title)
       PARAM_REMOVE_TITLE="$2"
       shift
       shift
@@ -845,7 +845,13 @@ function func_process_youtube_metadata() {
   AVERAGE_RATING=$(echo "$METADATA" | jq -r '.average_rating')
 
   # Filename (without path)
-  FILENAME=$(echo "$METADATA" | jq -r '._filename' | sed -e 's/.mp4//' | sed -e 's/.webm//')
+  # Remove TITLE function
+  if [ $REMOVE_TITLE == "true" ]; then
+      __info "Running remove title function..."
+      FILENAME=$(echo "$UPLOAD_DATE ($VIDEO_ID)")
+  else
+      FILENAME=$(echo "$METADATA" | jq -r '._filename' | sed -e 's/.mp4//' | sed -e 's/.webm//')
+  fi
 }
 
 function func_process_channel_mapping() {
@@ -1023,9 +1029,9 @@ function func_download_youtube() {
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
         --retries 30 \
-		--cookies "./config/cookies.txt" \
-		--merge-output-format mp4 \
-        -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
+		    --cookies "./config/cookies.txt" \
+		    --merge-output-format mp4 \
+        -o "${OUTPUT_BASE}/$FILENAME.%(ext)s" \
         "${WEBPAGE_URL}"
     else
       youtube-dl \
@@ -1034,9 +1040,9 @@ function func_download_youtube() {
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
         --retries 30 \
-		--cookies "./config/cookies.txt" \
-		--merge-output-format mp4 \
-        -o "${OUTPUT_BASE}/%(upload_date)s %(title)s (%(id)s).%(ext)s" \
+		    --cookies "./config/cookies.txt" \
+		    --merge-output-format mp4 \
+        -o "${OUTPUT_BASE}/$FILENAME.%(ext)s" \
         "${WEBPAGE_URL}"
     fi
   else
@@ -1139,16 +1145,6 @@ function func_callback() {
   fi
 }
 
-function func_remove_title() {
-  if [ $REMOVE_TITLE == "true" ]; then
-      __info "Running remove title function..."
-      for filern in "${OUTPUT_PATH}.mp4"; do extrn="${filern##*(}" ; mv --backup=numbered -v -f "$filern" "$OUTPUT_BASE/$UPLOAD_DATE (${extrn}"; done &
-      >> "$OUTPUT_PATH.log" 2>&1
-  else
-      __info "$(__yellow "No remove title run.")"
-  fi
-}
-
 #
 # Executes
 #
@@ -1182,7 +1178,7 @@ Examples:
 Options:
   --mode, -m                  Running mode, default: download, available: metadata, notifier
   --output, -o                Base output directory, default: ~/Downloads
-  --interval                  Remove title after download (some Japanese title video too long so it can not upload)
+  --remove_title, -rt         Remove title after download (some Japanese title video too long so it can not upload)
   --interval, -i              Loop interval, unit: second, default: 10
   --skip-alias, -a            Skip creating program alias to your shell profile
   --skip-check, -c            Skip dependency check, default: false
@@ -1341,7 +1337,6 @@ while true; do
         func_finalize_download
         func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
         func_callback
-        func_remove_title
 
       #
       # Mode: metadata only
@@ -1389,7 +1384,6 @@ while true; do
         func_download_youtube
         func_finalize_download
         func_callback
-        func_remove_title
         exit 0
       else
         __info "Metadata only mode, no video will be downloaded."
