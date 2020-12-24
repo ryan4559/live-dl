@@ -114,9 +114,8 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
-    -rt|--remove_title)
-      PARAM_REMOVE_TITLE="$2"
-      shift
+    -rt|--remove-title)
+      PARAM_REMOVE_TITLE=true
       shift
       ;;
     -i|--interval)
@@ -1010,6 +1009,7 @@ function func_download_youtube() {
 	youtube-dl \
 		--ignore-config \
 		--hls-use-mpegts \
+    --no-part \
 		--retries 30 \
 		--cookies "./config/cookies.txt" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
@@ -1031,8 +1031,8 @@ function func_download_youtube() {
         --retries 30 \
 		    --cookies "./config/cookies.txt" \
 		    --merge-output-format mp4 \
-        -o "${OUTPUT_BASE}/$FILENAME.%(ext)s" \
-        "${WEBPAGE_URL}"
+        -o "$OUTPUT_PATH.%(ext)s" \
+        "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
     else
       youtube-dl \
         --ignore-config \
@@ -1042,8 +1042,8 @@ function func_download_youtube() {
         --retries 30 \
 		    --cookies "./config/cookies.txt" \
 		    --merge-output-format mp4 \
-        -o "${OUTPUT_BASE}/$FILENAME.%(ext)s" \
-        "${WEBPAGE_URL}"
+        -o "$OUTPUT_PATH.%(ext)s" \
+        "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
     fi
   else
     __info "Not a valid URL, skippping"
@@ -1057,7 +1057,7 @@ function func_download_bilibili() {
 function func_finalize_download() {
   __info "Stop downloading"
 
-  if [ ! "$SKIP_METADATA" ]; then
+  if [ $SKIP_METADATA == "false" ]; then
     __info "Trying to write metadata and artwork"
 
     # Write metadata to MP4 (will override existing with -y option)
@@ -1070,6 +1070,7 @@ function func_finalize_download() {
         -metadata date="$UPLOAD_DATE" \
         -metadata description="$DESCRIPTION" \
         -metadata comment="$DESCRIPTION" \
+        -movflags faststart \
         "$OUTPUT_PATH-metadata.mp4" >> "$OUTPUT_PATH.log" 2>&1
       rm -f "$OUTPUT_PATH.mp4" && mv "$OUTPUT_PATH-metadata.mp4" "$OUTPUT_PATH.mp4"
     else
@@ -1084,13 +1085,16 @@ function func_finalize_download() {
 
       # Check if artwork avaiable
       if [ -f "$OUTPUT_PATH.jpg" ]; then
+        ffmpeg -i "$OUTPUT_PATH.jpg" -y \
+        "$OUTPUT_PATH.png" >> "$OUTPUT_PATH.log" 2>&1
         ffmpeg -i "$OUTPUT_PATH.mp4" -y \
-          -i "$OUTPUT_PATH.jpg" \
+          -i "$OUTPUT_PATH.png" \
           -map 1 -map 0 \
           -codec copy \
           -disposition:0 attached_pic \
+          -movflags faststart \
           "$OUTPUT_PATH-artwork.mp4" >> "$OUTPUT_PATH.log" 2>&1
-        rm -f "$OUTPUT_PATH.mp4" && mv "$OUTPUT_PATH-artwork.mp4" "$OUTPUT_PATH.mp4"
+        rm -f "$OUTPUT_PATH.mp4" "$OUTPUT_PATH.png" && mv "$OUTPUT_PATH-artwork.mp4" "$OUTPUT_PATH.mp4"
       else
         __info "$(__yellow "Artwork missing, this is a rare case, please report at my GitHub.")"
       fi
@@ -1178,7 +1182,7 @@ Examples:
 Options:
   --mode, -m                  Running mode, default: download, available: metadata, notifier
   --output, -o                Base output directory, default: ~/Downloads
-  --remove_title, -rt         Remove title after download (some Japanese title video too long so it can not upload)
+  --remove-title, -rt         Use to remove title when download (some Japanese title video too long so it can not upload), default: false
   --interval, -i              Loop interval, unit: second, default: 10
   --skip-alias, -a            Skip creating program alias to your shell profile
   --skip-check, -c            Skip dependency check, default: false
