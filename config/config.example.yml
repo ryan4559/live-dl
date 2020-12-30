@@ -16,6 +16,8 @@ config:
   # same location with youtube-dl web gui
   remove_title: false
   # remove title after download (some Japanese title too long title and can not upload to cloud drive)
+  archive_chat: false
+  # get live chat archive while the stream is still alive
   interval: 10
   skip_alias: false
   skip_check: false

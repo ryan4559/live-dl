@@ -1007,12 +1007,12 @@ function func_archive_chat() {
   local _type=$1
 
   if [ $ARCHIVE_CHAT == "true" ]; then
+    # get start time (utc format)
+    chat_start_time=$(date +%s%6N --utc)
+    __debug "Chat start time $chat_start_time "
 
     if [ "$_type" == "start" ]; then
       __info "Calling pytchat to run archive chat..."
-      # get start time (utc format)
-      chat_start_time=$(date +%s%6N --utc)
-      __debug "Chat start time $chat_start_time "
       # continuously fetching live chat and appending to $OUTPUT_PATH-chat.json
       python -u /usr/src/app/youtube-chat.py fetch $VIDEO_ID "$OUTPUT_PATH"
 
