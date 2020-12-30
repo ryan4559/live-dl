@@ -5,7 +5,7 @@ RUN apk add --no-cache aria2 \
 	&& mkdir -p /etc/aria2 \
 	&& mkdir -p /aria2down \
 	&& rm -rf /var/lib/apk/lists/*
-	
+
 RUN apk add --no-cache \
   ffmpeg \
   tzdata \
@@ -18,7 +18,7 @@ RUN apk add --no-cache \
 
 RUN pip3 install yq
 
-RUN pip install bottle youtube-dl
+RUN pip install bottle youtube-dl pytchat
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
