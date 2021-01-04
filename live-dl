@@ -409,7 +409,7 @@ function func_check_state() {
     # will do a secound check using youtube-dl later with this flag.
     if [ "$IS_LIVE" == "true" ]; then
       __info "cURL check seems goes live now, continue checking..."
-      if [ $KEYWORD_FILTER== "true" ]; then
+      if [ "$KEYWORD_FILTER" == "true" ]; then
         #read keyword in keyword.txt
         local _FILTER=$(cat ./config/keyword.txt)
         __debug "Keyword filter: "$_FILTER""
