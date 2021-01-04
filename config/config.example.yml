@@ -18,6 +18,8 @@ config:
   # remove title after download (some Japanese title too long title and can not upload to cloud drive)
   archive_chat: false
   # get live chat archive while the stream is still alive
+  filter_name: false
+  # only download if match with keyword filter, file: filter_name.txt, using "\|" between 2 keywords
   interval: 10
   skip_alias: false
   skip_check: false
