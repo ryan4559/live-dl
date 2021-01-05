@@ -23,7 +23,6 @@
 # To-do list
 #
 # - [x] dependencies check
-# - [x] convert output from .ts to .mp4
 # - [x] youtube playlist support (not perfect when writing metadata)
 # - [x] thumbnail size check
 # - [x] write metadata and cover
@@ -143,10 +142,6 @@ while [ $# -gt 0 ]; do
       PARAM_SKIP_ALIAS=true
       shift
       ;;
-    --skip-convert)
-      PARAM_SKIP_CONVERT=true
-      shift
-      ;;
     --skip-metadata)
       PARAM_SKIP_METADATA=true
       shift
@@ -207,7 +202,7 @@ function func_create_url() {
 
   local _url=$1
 
-  if [[ "$_url" =~ "youtube.com" ]]; then
+  if [[ "$_url" =~ "youtube.com" ]] || [[ "$_url" =~ "youtu.be" ]]; then
     __info "YouTube URL detected"
     DL_PLATFORM="YouTube"
 
@@ -230,6 +225,12 @@ function func_create_url() {
       __info "YouTube playlist detected"
       DL_URL="$_url"
       DL_TYPE="playlist"
+
+    elif [[ "$_url" =~ "youtu.be"* ]]; then
+      __info "Short YouTube video detected"
+      _url=`echo "$_url"|sed 's/https:\/\/youtu.be\///'`
+      DL_URL="https://www.youtube.com/watch?v=$_url"
+      DL_TYPE="video"
 
     else
       __info "$(__red "Non-supported YouTube URL")"
@@ -1028,7 +1029,7 @@ function func_archive_chat() {
   if [ $ARCHIVE_CHAT == "true" ]; then
     # get start time (utc format)
     chat_start_time=$(date +%s%6N --utc)
-    __debug "Chat start time $chat_start_time "
+    __debug "$(__yellow "Chat start time $chat_start_time ")"
 
     if [ "$_type" == "start" ]; then
       __info "Calling pytchat to run archive chat..."
@@ -1042,7 +1043,7 @@ function func_archive_chat() {
     fi
 
   else
-    __info "$(__yellow "No run archive chat.")"
+    __debug "No run archive chat."
   fi
 }
 
@@ -1218,6 +1219,7 @@ Examples:
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/live
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg
   live-dl UC1opHUrw8rvnsadT-iGp7Cg
+  live-dl https://youtu.be/4ZBQ1W8jV9A
 
   Download specific upload, this should be a live stream or finished stream
   live-dl https://www.youtube.com/watch?v=S3CAGeeMRvo
@@ -1228,14 +1230,13 @@ Examples:
 
 Options:
   --mode, -m                  Running mode, default: download, available: metadata, notifier
-  --output, -o                Base output directory, default: ~/Downloads
+  --output, -o                Base output directory, default: /youtube-dl/VTuber Recordings
   --remove-title, -rt         Use to remove title when download, default: false
   --archive-chat, -ac         Use to archive live chat from Youtube live stream, default: false
   --keyword-filter, -kf       Only download if match with keyword filter, default: false
   --interval, -i              Loop interval, unit: second, default: 10
   --skip-alias, -a            Skip creating program alias to your shell profile
   --skip-check, -c            Skip dependency check, default: false
-  --skip-convert              Skip converting TS file to MP4
   --skip-email                Skip sending email notification
   --skip-slack                Skip sending Slack notification
   --skip-telegram             Skip sending Telegram notification
@@ -1271,7 +1272,6 @@ CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
 CONFIG_SKIP_ALIAS=`echo $CONFIG_RAW | jq -r '.config.skip_alias | select(.!=null)'`
-CONFIG_SKIP_CONVERT=`echo $CONFIG_RAW | jq -r '.config.skip_convert | select(.!=null)'`
 CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.!=null)'`
 CONFIG_SKIP_EMAIL=`echo $CONFIG_RAW | jq -r '.config.skip_email | select(.!=null)'`
 CONFIG_SKIP_SLACK=`echo $CONFIG_RAW | jq -r '.config.skip_slack | select(.!=null)'`
@@ -1301,7 +1301,6 @@ ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
 SKIP_ALIAS="${PARAM_SKIP_ALIAS:-$CONFIG_SKIP_ALIAS}"
-SKIP_CONVERT="${PARAM_SKIP_CONVERT:-$CONFIG_SKIP_CONVERT}"
 SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
 SKIP_EMAIL="${PARAM_SKIP_EMAIL:-$CONFIG_SKIP_EMAIL}"
 SKIP_SLACK="${PARAM_SKIP_SLACK:-$CONFIG_SKIP_SLACK}"
@@ -1327,7 +1326,6 @@ __info "Archive chat                   : ${ARCHIVE_CHAT}"
 __info "Keyword filter                 : ${KEYWORD_FILTER}"
 __info "Run interval (when loop)       : ${INTERVAL}"
 __info "Skip script alias              : ${SKIP_ALIAS}"
-__info "Skip convert                   : ${SKIP_CONVERT}"
 __info "Skip embedding metadata        : ${SKIP_METADATA}"
 __info "Skip email notification        : ${SKIP_EMAIL}"
 __info "Skip Slack notification        : ${SKIP_SLACK}"
