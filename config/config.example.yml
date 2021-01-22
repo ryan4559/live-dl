@@ -21,7 +21,6 @@ config:
   keyword_filter: false
   # only download if match with keyword filter, file: keyword.txt, using "\|" between 2 keywords
   interval: 10
-  skip_alias: false
   skip_check: false
   skip_metadata: false
   skip_email: false

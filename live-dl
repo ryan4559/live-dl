@@ -48,7 +48,7 @@
 #
 # Variables
 #
-USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36"
+USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
 IMAGE_PROXY_BASE="https://experiments.sparanoid.net/imageproxy/"
 
 #
@@ -133,10 +133,6 @@ while [ $# -gt 0 ]; do
       ;;
     --debug)
       PARAM_DEBUG=true
-      shift
-      ;;
-    -a|--skip-alias)
-      PARAM_SKIP_ALIAS=true
       shift
       ;;
     --skip-metadata)
@@ -353,29 +349,31 @@ function func_check_state() {
 
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
-    local _body=$(curl -b "$COOKIES_FILE" -s "$_url")
+    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
     # Take first videoID from comemunity and it should must be members only post
     local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
     local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
-    _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-    __debug "Detected member only stream $_url"
+
+    if [ -n "$_VIDEO_ID" ]; then
+      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+      __debug "Detected member only stream $_url"
+    else
+      __info "Can not detect member only stream, make sure your cookie_membership.txt is from an account joined membership of channel $_url"
+    fi
   fi
 
   # Passing useragent causes youtube to return the content to one line. Then grep died.
-  local _body=$(curl $address_param -b "$COOKIES_FILE" -s "$_url")
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
 
   # Extract metadata from fetched page
-  METADATA_CURL_RAW=`echo "$_body" | grep -o 'var ytInitialPlayerResponse = .*' | head -1`
+  METADATA_CURL_RAW=`echo "$_body" | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext'`
 
-  # NOTE: Oct 25, 2020
-  # Recently YouTube changes its page to returns `null` for `ytInitialPlayerResponse` when the
-  # channel is not streaming. This makes me easier to tell whether it's live or not.
-  if [[ "$METADATA_CURL_RAW" =~ 'window["ytInitialPlayerResponse"] = null' ]]; then
-    METADATA_CURL="{}"
-    __debug "ytInitialPlayerResponse returns null"
-  else
-    METADATA_CURL=`echo "$METADATA_CURL_RAW" | perl -pe 's/^.*?(\{\".*}).*/\1/g' | jq -r .`
-  fi
+  # Match only JSON part
+  # https://regex101.com/r/QiyZE2/3
+  #
+  # Debug commmand if YouTube changes its HTML structure in the future:
+  # $ curl -s --compressed -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36" 'https://www.youtube.com/watch?v=j2z06YUbulk' | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext' | perl -pe 's/^.*?ytInitialPlayerResponse = ({".*]});var .*/\1/g' | jq -r .
+  METADATA_CURL=`echo "$METADATA_CURL_RAW" | perl -pe 's/^.*?ytInitialPlayerResponse = (\{".*});var meta.*/\1/g' | jq -r .`
 
   # Check if returns nothing
   if [ ! -z "$METADATA_CURL" ]; then
@@ -449,16 +447,14 @@ function func_check_state() {
     else
       # If `isLive` key not exists, check if it's a valid video (playable)
       if [ "$PLAYABILITY" == "OK" ]; then
-        if [ "$DL_OPTION" == "community" ]; then
-          # Skip download member only stream if it is not live
-          PLAYABILITY="invalid"
-          __debug "Detected member only stream but it not live, skip download"
-        fi
         # Then check if it's a channel URL
         if [ "$DL_TYPE" == "channel" ]; then
-
+          if [ "$DL_OPTION" == "community" ]; then
+            # Skip download member only stream if it is not live
+            PLAYABILITY="invalid"
+            __debug "Detected member only stream but it not live, skip download"
+          else
           # Check if the streamer is streaming privately.
-          if [ -z "$STREAMABILITY" ]; then
             __info "$(__yellow "/live redirects to /, event mode or streaming privately?")"
           fi
         else
@@ -1003,9 +999,9 @@ function func_finalize_vars() {
   # (200 HTTP code) even if the streamer set a smaller thumbnail that is only suitable at a smaller
   # size (hqdefault.jpg)
   #
-  # Another scenario is that that the streamer set an upcoming event with thumbnail-A, and she/he
-  # later changes it to another (thumbnail-B) when stream goes live, `maxresdefault_live.jpg` seems
-  # always returns thumbnail-A while `maxresdefault.jpg` can get the correct thumbnail-B.
+  # Another scenario is that the streamer set an upcoming event with thumbnail-A. But she/he later
+  # changes it to another (thumbnail-B) when stream goes live. `maxresdefault_live.jpg` seems always
+  # returns thumbnail-A while `maxresdefault.jpg` can get the correct thumbnail-B.
   #
   # First download thumbnail provided from youtube-dl
   THUMBNAIL_CALC="$THUMBNAIL"
@@ -1083,7 +1079,7 @@ function func_download_youtube() {
 		--ignore-config \
 		--hls-use-mpegts \
     --no-part \
-		--retries 30 \
+		--fragment-retries 30 \
 		--cookies "$COOKIES_FILE" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
 		"${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
@@ -1237,8 +1233,6 @@ fi
 if [ ! -n "$1" ]; then
   echo "Usage: $0 url [options]
 
-Run $0 --init to initialize this script.
-
 Examples:
   Monitor specific channel, download stream when channel goes live:
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/live
@@ -1246,12 +1240,12 @@ Examples:
   live-dl UC1opHUrw8rvnsadT-iGp7Cg
   live-dl https://youtu.be/4ZBQ1W8jV9A
 
+  Monitor community tab of specific channel (to detect member only stream), download stream when channel goes live:
+  live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/community
+
   Download specific upload, this should be a live stream or finished stream
   live-dl https://www.youtube.com/watch?v=S3CAGeeMRvo
   live-dl S3CAGeeMRvo
-
-  Download all uploads from a playlist
-  live-dl https://www.youtube.com/playlist?list=UU1opHUrw8rvnsadT-iGp7Cg
 
 Options:
   --mode, -m                  Running mode, default: download, available: metadata, notifier
@@ -1260,7 +1254,6 @@ Options:
   --archive-chat, -ac         Use to archive live chat from Youtube live stream, default: false
   --keyword-filter, -kf       Only download if match with keyword filter, default: false
   --interval, -i              Loop interval, unit: second, default: 10
-  --skip-alias, -a            Skip creating program alias to your shell profile
   --skip-check, -c            Skip dependency check, default: false
   --skip-email                Skip sending email notification
   --skip-slack                Skip sending Slack notification
@@ -1296,7 +1289,6 @@ CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=
 CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=null)'`
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
-CONFIG_SKIP_ALIAS=`echo $CONFIG_RAW | jq -r '.config.skip_alias | select(.!=null)'`
 CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.!=null)'`
 CONFIG_SKIP_EMAIL=`echo $CONFIG_RAW | jq -r '.config.skip_email | select(.!=null)'`
 CONFIG_SKIP_SLACK=`echo $CONFIG_RAW | jq -r '.config.skip_slack | select(.!=null)'`
@@ -1325,7 +1317,6 @@ REMOVE_TITLE="${PARAM_REMOVE_TITLE:-$CONFIG_REMOVE_TITLE}"
 ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
-SKIP_ALIAS="${PARAM_SKIP_ALIAS:-$CONFIG_SKIP_ALIAS}"
 SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
 SKIP_EMAIL="${PARAM_SKIP_EMAIL:-$CONFIG_SKIP_EMAIL}"
 SKIP_SLACK="${PARAM_SKIP_SLACK:-$CONFIG_SKIP_SLACK}"
@@ -1350,7 +1341,6 @@ __info "Remove Title                   : ${REMOVE_TITLE}"
 __info "Archive chat                   : ${ARCHIVE_CHAT}"
 __info "Keyword filter                 : ${KEYWORD_FILTER}"
 __info "Run interval (when loop)       : ${INTERVAL}"
-__info "Skip script alias              : ${SKIP_ALIAS}"
 __info "Skip embedding metadata        : ${SKIP_METADATA}"
 __info "Skip email notification        : ${SKIP_EMAIL}"
 __info "Skip Slack notification        : ${SKIP_SLACK}"
@@ -1383,12 +1373,12 @@ while true; do
       __debug "Not valid at the moment, continue running"
     fi
 
-    __info "Stream unavailable, retry in ${INTERVAL}s..."
+    __debug "Stream unavailable, retry in ${INTERVAL}s..."
     sleep $INTERVAL
   done
 
   # Get video(s) metadata
-  __info "Fetching metadata..."
+  __info  "Prepare downloading..."
   __debug "Download platform: $DL_PLATFORM"
   __debug "Download type: $DL_TYPE"
   __debug "Download mode: $MODE"
