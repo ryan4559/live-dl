@@ -34,17 +34,14 @@
 # - [x] refine telegram multichannel support
 # - [x] channel name mapping
 # - [x] download base dir support
-# - [ ] get channel avatar
 # - [x] upcoming streams detection
 # - [x] keyword filter
-# - [ ] metadata overriding mode
+# - [x] metadata overriding mode
 # - [x] summary output for uploading
 # - [x] recording summary
 # - [x] embed cover
 # - [x] add hostname to output
 # - [x] dockerize this script
-# - [ ] bilibili live support
-# - [ ] qq notification
 # - [x] rewrite is_live detection logic
 #
 
@@ -211,10 +208,16 @@ function func_create_url() {
       DL_URL="$_url"
       DL_TYPE="channel"
 
-    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" ]]; then
+    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" ]]; then
       __info "YouTube video detected (alt)"
       DL_URL="$_url/live"
       DL_TYPE="channel"
+
+    elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]]; then
+      __info "YouTube community detected (member only stream)"
+      DL_URL="$_url"
+      DL_TYPE="channel"
+      DL_OPTION="community"
 
     elif [[ "$_url" =~ "/watch"* ]]; then
       __info "YouTube video detected"
@@ -341,8 +344,25 @@ function func_check_state() {
     __info "using address: ${address_param##* }"
   fi
 
+  if [[ "$DL_OPTION" == "community" ]] ; then
+    # Select cookies_membership.txt for members only post
+    COOKIES_FILE="./config/cookies_membership.txt"
+  else
+    COOKIES_FILE="./config/cookies.txt"
+  fi
+
+  local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
+  if [[ "$_url" =~ $regex_community ]] ; then
+    local _body=$(curl -b "$COOKIES_FILE" -s "$_url")
+    # Take first videoID from comemunity and it should must be members only post
+    local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
+    local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+    _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+    __debug "Detected member only stream $_url"
+  fi
+
   # Passing useragent causes youtube to return the content to one line. Then grep died.
-  local _body=$(curl $address_param -b "./config/cookies.txt" -s "$_url")
+  local _body=$(curl $address_param -b "$COOKIES_FILE" -s "$_url")
 
   # Extract metadata from fetched page
   METADATA_CURL_RAW=`echo "$_body" | grep -o 'var ytInitialPlayerResponse = .*' | head -1`
@@ -419,7 +439,7 @@ function func_check_state() {
         if [ "$FULLTITLE" == "$FULLTITLE_FILTER" ]; then
         CONTENT_STATE="live"
         else
-        CONTENT_STATE="offline"
+        CONTENT_STATE="invalid"
         __info "Title is not match with keywork, skip download"
         fi
       else
@@ -429,7 +449,11 @@ function func_check_state() {
     else
       # If `isLive` key not exists, check if it's a valid video (playable)
       if [ "$PLAYABILITY" == "OK" ]; then
-
+        if [ "$DL_OPTION" == "community" ]; then
+          # Skip download member only stream if it is not live
+          PLAYABILITY="invalid"
+          __debug "Detected member only stream but it not live, skip download"
+        fi
         # Then check if it's a channel URL
         if [ "$DL_TYPE" == "channel" ]; then
 
@@ -448,7 +472,8 @@ function func_check_state() {
 
         # Check if upcoming event available
         if [ ! -z "$UPCOMING_TIME" ]; then
-          __info "$(__yellow "Upcoming event detected: $UPCOMING_TIME")"
+          local _date_calc=`date -d @$UPCOMING_TIME`
+          __info "$(__yellow "Upcoming event detected: $_date_calc")"
         fi
       fi
     fi
@@ -486,7 +511,7 @@ function func_check_state() {
       if [ "$_youtube_dl_address_param" ]; then
         __info "using address: ${_youtube_dl_address_param##* }"
       fi
-      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "./config/cookies.txt" \
+      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
         --skip-download --print-json --referer 'https://www.youtube.com/feed/subscriptions' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
         ${_youtube_dl_address_param} \
@@ -1059,7 +1084,7 @@ function func_download_youtube() {
 		--hls-use-mpegts \
     --no-part \
 		--retries 30 \
-		--cookies "./config/cookies.txt" \
+		--cookies "$COOKIES_FILE" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
 		"${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
   elif [ "$CONTENT_STATE" == "video" ]; then
@@ -1358,7 +1383,7 @@ while true; do
       __debug "Not valid at the moment, continue running"
     fi
 
-    __info "No streaming yet, retry in ${INTERVAL}s..."
+    __info "Stream unavailable, retry in ${INTERVAL}s..."
     sleep $INTERVAL
   done
 
