@@ -350,7 +350,7 @@ function func_check_state() {
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
     local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
-    # Take first videoID from comemunity and it should must be members only post
+    # Take first videoID from community and it should must be members only post
     local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
     local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
 
@@ -1080,6 +1080,7 @@ function func_download_youtube() {
 		--hls-use-mpegts \
     --no-part \
 		--fragment-retries 30 \
+    --retries 60 \
 		--cookies "$COOKIES_FILE" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
 		"${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1

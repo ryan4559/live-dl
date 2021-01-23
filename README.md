@@ -1,4 +1,4 @@
-# [`New feature`]
+# `New feature`
  * [Run on Docker](#how-run-on-synology-nas-docker)
  * Metadata write
  * Archive live chat (Note: using this feature may make a large size json file if live chat has a high number of users/spam chat or spam emo.)
