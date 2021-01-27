@@ -1417,7 +1417,11 @@ while true; do
       if [ -n "$LONG_INTERVAL" ]; then
         TIME_NOW=`date +%s`
         TIME_NOW=`expr $TIME_NOW + $LONG_INTERVAL`
-        if [[ "$UPCOMING_TIME" > $TIME_NOW ]]; then
+        if [ -n "$UPCOMING_TIME" ]; then
+          if [[ "$UPCOMING_TIME" > $TIME_NOW ]]; then
+            INTERVAL=$LONG_INTERVAL
+          fi
+        else
           INTERVAL=$LONG_INTERVAL
         fi
       fi
