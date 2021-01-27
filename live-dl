@@ -1409,7 +1409,7 @@ while true; do
       ONE_TIME="true"
       break
     else
-
+    INTERVAL2=$INTERVAL
       # Get the time now and compare with upcoming time
       # If upcoming time longer than LONG_INTERVAL, live-dl will use LONG_INTERVAL
       # If upcoming time less than LONG_INTERVAL, live-dl will use INTERVAL
@@ -1419,17 +1419,17 @@ while true; do
         TIME_NOW=`expr $TIME_NOW + $LONG_INTERVAL`
         if [ -n "$UPCOMING_TIME" ]; then
           if [[ "$UPCOMING_TIME" > $TIME_NOW ]]; then
-            INTERVAL=$LONG_INTERVAL
+            INTERVAL2=$LONG_INTERVAL
           fi
         else
-          INTERVAL=$LONG_INTERVAL
+          INTERVAL2=$LONG_INTERVAL
         fi
       fi
       __debug "Not valid at the moment, continue running"
     fi
 
-    __debug "Stream unavailable, retry in ${INTERVAL}s..."
-    sleep $INTERVAL
+    __debug "Stream unavailable, retry in ${INTERVAL2}s..."
+    sleep $INTERVAL2
   done
 
   # Get video(s) metadata
