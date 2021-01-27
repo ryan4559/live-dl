@@ -20,7 +20,8 @@ config:
   # get live chat archive while the stream is still alive
   keyword_filter: false
   # only download if match with keyword filter, file: keyword.txt, using "\|" between 2 keywords
-  interval: 10
+  interval: 30
+  long_interval: 600
   skip_check: false
   skip_metadata: false
   skip_email: false
