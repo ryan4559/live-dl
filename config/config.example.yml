@@ -56,7 +56,7 @@ config:
   discord:
     # push notification via Discord DM.
     bot: 0000000000000.aaaaaa.bbbbbbbbbbbbbbbbbb
-    channel: 0000000000000
+    channel: "0000000000000"
   callback:
     # `EXECUTABLE "${OUTPUT_PATH}.mp4" "$BASE_DIR/" $VIDEO_ID $FULLTITLE $UPLOADER $UPLOAD_DATE` will be called.
     executable: /dev/null

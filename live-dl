@@ -881,6 +881,7 @@ function func_send_discord() {
     if [ "$CONFIG_DISCORD_BOT" == "0000000000000.aaaaaa.bbbbbbbbbbbbbbbbbb" ]; then
       __info "$(__yellow "No Discord credentials found, skip sending Discord notification")"
     else
+      if [ "$CONFIG_DISCORD_CHANNEL" != "0000000000000" ]; then
 
       if [ "$_type" == "start" ]; then
         local _body='{
@@ -952,6 +953,9 @@ function func_send_discord() {
       curl -s -X POST -H 'Content-type: application/json' -o /dev/null \
            --header "Authorization: Bot $CONFIG_DISCORD_BOT" \
            -d "$_body" "https://discord.com/api/channels/$CONFIG_DISCORD_CHANNEL/messages"
+      else
+        __info "No Discord channel set, skip sending Discord notification."
+      fi
     fi
   fi
 }

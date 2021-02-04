@@ -90,7 +90,7 @@ Push notification via Discord DM. If you want to push notification for a channel
 Create a Application and a Bot at https://discord.com/developers/, copy Bot token to `config.yml` file. Because Bot can not create a DM to user at first time and User can not add friend or find Bot to make a DM, you need follow this :
 * Create a temp Discord server, add your bot to temp server (change xxxx = client ID in application) https://discord.com/api/oauth2/authorize?client_id=xxxx&response_type=code&scope=messages.read
 * Click to Bot on Server User list (right panel) and send a Private Message to bot
-* Open https://discord.com/channels/@me/ on browser, select your Bot and copy channel ID (numbers after /@me/) to `config.yml` file
+* Open https://discord.com/channels/@me/ on browser, select your Bot and copy channel ID (numbers after /@me/, put **between two "**) to `config.yml` file
 * You can delete temp Discord server
 
 <img src="https://i.imgur.com/jJIRwlH.png">
