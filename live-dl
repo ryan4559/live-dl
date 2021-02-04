@@ -792,7 +792,7 @@ function func_send_slack() {
         }'
       fi
 
-      curl -s -X POST -H 'Content-type: application/json' \
+      curl -s -X POST -H 'Content-type: application/json' -o /dev/null \
         -d "$_body" "$CONFIG_SLACK_WEBHOOK"
     fi
   fi
@@ -864,7 +864,7 @@ function func_send_telegram() {
           }'
         fi
 
-        curl -s -X POST -H 'Content-Type: application/json' \
+        curl -s -X POST -H 'Content-Type: application/json' -o /dev/null \
           -d "$_body" "https://api.telegram.org/bot$CONFIG_TELEGRAM_BOT/$_type"
       else
         __info "No specific channel set for current user, skip sending Telegram notification."
@@ -949,7 +949,7 @@ function func_send_discord() {
         }'
       fi
       __info "Sending Discord notification..."
-      curl -X POST -H 'Content-type: application/json' -o /dev/null \
+      curl -s -X POST -H 'Content-type: application/json' -o /dev/null \
            --header "Authorization: Bot $CONFIG_DISCORD_BOT" \
            -d "$_body" "https://discord.com/api/channels/$CONFIG_DISCORD_CHANNEL/messages"
     fi
