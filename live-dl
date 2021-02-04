@@ -30,7 +30,7 @@
 # - [x] mailgun setup guide
 # - [x] slack notification
 # - [x] telegram notification
-# - [ ] discord notification
+# - [X] discord notification
 # - [x] refine telegram multichannel support
 # - [x] channel name mapping
 # - [x] download base dir support
@@ -154,6 +154,10 @@ while [ $# -gt 0 ]; do
       ;;
     --skip-telegram)
       PARAM_SKIP_TELEGRAM=true
+      shift
+      ;;
+    --skip-discord)
+      PARAM_SKIP_DISCORD=true
       shift
       ;;
     --callback)
@@ -333,9 +337,11 @@ function check_update() {
                 Update new docker image https://hub.docker.com/r/herowinb/live-dl
             **************************************************************************
             "
+    UPDATENOTE_SHORT="**You are using an outdated live-dl version**"
       __info "$UPDATENOTE"
     else
       UPDATENOTE=""
+      UPDATENOTE_SHORT=""
       __debug "$(__yellow "Live-dl is up to date")"
     fi
 }
@@ -867,6 +873,89 @@ function func_send_telegram() {
   fi
 }
 
+function func_send_discord() {
+  local _type=$1
+
+  if [ "$SKIP_DISCORD" != "true" ]; then
+
+    if [ "$CONFIG_DISCORD_BOT" == "0000000000000.aaaaaa.bbbbbbbbbbbbbbbbbb" ]; then
+      __info "$(__yellow "No Discord credentials found, skip sending Discord notification")"
+    else
+
+      if [ "$_type" == "start" ]; then
+        local _body='{
+          "content": ":red_circle: '"$UPLOADER"' goes live on '"$DL_PLATFORM"' '"$UPDATENOTE_SHORT"'",
+          "embed": {
+            "author": {
+              "name": "'"$UPLOADER"'",
+              "url": "'"$CHANNEL_URL"'"
+            },
+            "title": "'"$FULLTITLE"'",
+            "url": "'"$WEBPAGE_URL"'",
+            "color": 15258703,
+            "fields": [
+              {
+                "name": "Channel",
+                "value": "['"$UPLOADER"']('"$CHANNEL_URL"')",
+                "inline": true
+              },
+              {
+                "name": "Thumbnail",
+                "value": "[View in new tab]('"$THUMBNAIL_CALC"')",
+                "inline": true
+              }
+            ],
+            "image": {
+              "url": "'"$THUMBNAIL_CALC"'"
+            }
+          }
+        }'
+      elif [ "$_type" == "stop" ]; then
+        local _body='{
+          "username": "Live-DL",
+          "avatar_url": "https://i.imgur.com/9BafdJd.png",
+          "content": ":white_square_button: '"$UPLOADER"' stopped streaming on '"$DL_PLATFORM"'",
+          "embed": {
+            "author": {
+              "name": "'"$UPLOADER"'",
+              "url": "'"$CHANNEL_URL"'"
+            },
+            "title": "'"$FULLTITLE"'",
+            "url": "'"$WEBPAGE_URL"'",
+            "color": 16085214,
+            "fields": [
+              {
+                "name": "Views",
+                "value": "'"$VIEW_COUNT"'",
+                "inline": true
+              },
+              {
+                "name": "Likes/Dislikes",
+                "value": "'"$LIKE_COUNT"'/'"$DISLIKE_COUNT"'",
+                "inline": true
+              },
+              {
+                "name": "Duration",
+                "value": "'"$FILE_SUMMARY_DURATION_CALC"'",
+                "inline": true
+              },
+              {
+                "name": "Size",
+                "value": "'"$FILE_SUMMARY_SIZE_CALC"'",
+                "inline": true
+              }
+            ]
+          }
+        }'
+      fi
+      __info "Sending Discord notification..."
+      curl -X POST -H 'Content-type: application/json' -o /dev/null \
+           --header "Authorization: Bot $CONFIG_DISCORD_BOT" \
+           -d "$_body" "https://discord.com/api/channels/$CONFIG_DISCORD_CHANNEL/messages"
+    fi
+  fi
+}
+
 # Detect profile file if not specified as environment variable
 # Borrowed from acme.sh
 function func_detect_profile() {
@@ -1291,6 +1380,7 @@ Options:
   --skip-email                Skip sending email notification
   --skip-slack                Skip sending Slack notification
   --skip-telegram             Skip sending Telegram notification
+  --skip-discord              Skip sending Discrod notification
   --callback [EXECUTABLE]     Run the callback after videos downloaded
   --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error
   --once, -1                  Run only once, default: false
@@ -1304,7 +1394,7 @@ if ! [ -f ./config/config.yml ]; then
   __info "$(__red "No config.yml, 'cp config.example.yml config.yml' and rerun this script.")"
   exit 1;
 else
-  CONFIG_RAW=`cat ./config/config.yml | yq -r .`
+  CONFIG_RAW=`cat ./config/config.yml | yq -rR .`
 fi
 
 # Set default settings
@@ -1327,6 +1417,7 @@ CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.
 CONFIG_SKIP_EMAIL=`echo $CONFIG_RAW | jq -r '.config.skip_email | select(.!=null)'`
 CONFIG_SKIP_SLACK=`echo $CONFIG_RAW | jq -r '.config.skip_slack | select(.!=null)'`
 CONFIG_SKIP_TELEGRAM=`echo $CONFIG_RAW | jq -r '.config.skip_telegram | select(.!=null)'`
+CONFIG_SKIP_DISCORD=`echo $CONFIG_RAW | jq -r '.config.skip_discord | select(.!=null)'`
 CONFIG_CALLBACK=`echo $CONFIG_RAW | jq -r '.config.run_callback | select(.!=null)'`
 CONFIG_ADDRESS_POOL=`echo $CONFIG_RAW | jq -r '.config.address_pool | select(.!=null)'`
 CONFIG_ONE_TIME=`echo $CONFIG_RAW | jq -r '.config.one_time | select(.!=null)'`
@@ -1342,6 +1433,8 @@ CONFIG_SES_RECEIPT=`echo $CONFIG_RAW | jq -r '.config.ses.receipt | select(.!=nu
 CONFIG_SLACK_WEBHOOK=`echo $CONFIG_RAW | jq -r '.config.slack.webhook | select(.!=null)'`
 CONFIG_TELEGRAM_BOT=`echo $CONFIG_RAW | jq -r '.config.telegram.bot | select(.!=null)'`
 CONFIG_TELEGRAM_CHANNEL=`echo $CONFIG_RAW | jq -r '.config.telegram.channel | select(.!=null)'`
+CONFIG_DISCORD_BOT=`echo $CONFIG_RAW | jq -r '.config.discord.bot | select(.!=null)'`
+CONFIG_DISCORD_CHANNEL=`echo $CONFIG_RAW | jq -r '.config.discord.channel | select(.!=null)'`
 CONFIG_CALLBACK_EXEC=`echo $CONFIG_RAW | jq -r '.config.callback.executable | select(.!=null)'`
 CONFIG_ADDRESS_POOL_FILE=`echo $CONFIG_RAW | jq -r '.config.address_pool_file | select(.!=null)'`
 
@@ -1356,6 +1449,7 @@ SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
 SKIP_EMAIL="${PARAM_SKIP_EMAIL:-$CONFIG_SKIP_EMAIL}"
 SKIP_SLACK="${PARAM_SKIP_SLACK:-$CONFIG_SKIP_SLACK}"
 SKIP_TELEGRAM="${PARAM_SKIP_TELEGRAM:-$CONFIG_SKIP_TELEGRAM}"
+SKIP_DISCORD="${PARAM_SKIP_DISCORD:-$CONFIG_SKIP_DISCORD}"
 CALLBACK="${PARAM_CALLBACK:-$CONFIG_CALLBACK}"
 CALLBACK_EXEC="${PARAM_CALLBACK_EXEC:-$CONFIG_CALLBACK_EXEC}"
 ADDRESS_POOL="${PARAM_ADDRESS_POOL:-$CONFIG_ADDRESS_POOL}"
@@ -1384,6 +1478,7 @@ __info "Skip embedding metadata        : ${SKIP_METADATA}"
 __info "Skip email notification        : ${SKIP_EMAIL}"
 __info "Skip Slack notification        : ${SKIP_SLACK}"
 __info "Skip Telegram notification     : ${SKIP_TELEGRAM}"
+__info "Skip Discord notification      : ${SKIP_DISCORD}"
 __info "Callback                       : ${CALLBACK}"
 __info "Address Pool                   : ${ADDRESS_POOL}"
 __info "Email provider                 : ${CONFIG_EMAIL_PROVIDER}"
@@ -1461,10 +1556,12 @@ while true; do
         func_send_email "🔴 [YouTube] $UPLOADER - $FULLTITLE" "$_break$UPDATENOTE$_break$SUMMARY_TRIM$_break$DESCRIPTION" &
         func_send_slack "start" &
         func_send_telegram "start" &
+        func_send_discord "start"
         func_archive_chat "start" &
         func_download_youtube
         func_finalize_download
-        func_archive_chat "stop"
+        func_archive_chat "stop" &
+        func_send_discord "stop" &
         func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
         func_callback
 

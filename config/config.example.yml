@@ -27,6 +27,7 @@ config:
   skip_email: false
   skip_slack: false
   skip_telegram: false
+  skip_discord: false
   run_callback: false
   address_pool: false
   one_time: false
@@ -51,6 +52,10 @@ config:
     bot: 000000000:xxxxxxxxx
     # Get channel ID via:
     # https://api.telegram.org/bot<API-access-token>/getUpdates?offset=0
+    channel: 0000000000000
+  discord:
+    # push notification via Discord DM.
+    bot: 0000000000000.aaaaaa.bbbbbbbbbbbbbbbbbb
     channel: 0000000000000
   callback:
     # `EXECUTABLE "${OUTPUT_PATH}.mp4" "$BASE_DIR/" $VIDEO_ID $FULLTITLE $UPLOADER $UPLOAD_DATE` will be called.
