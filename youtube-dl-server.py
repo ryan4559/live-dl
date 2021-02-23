@@ -47,7 +47,7 @@ def q_put():
     }
 
     if not url:
-        return {"success": False, "error": "/q called without a 'url' query param"}
+        return {"success": False, "error": "/q called without a 'url' in form data"}
 
     dl_q.put((url, options))
     print("Added url " + url + " to the download queue")
@@ -107,7 +107,10 @@ def get_ydl_options(request_options):
         'format': ydl_vars['YDL_FORMAT'],
         'postprocessors': postprocessors,
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
-        'download_archive': ydl_vars['YDL_ARCHIVE_FILE']
+        'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
+        'cookiefile': '/usr/src/app/config/cookies.txt',
+        'ignoreerrors': True,
+        'nopart': True
     }
 
 
