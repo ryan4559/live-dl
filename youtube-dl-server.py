@@ -55,7 +55,7 @@ def q_put():
 
 @app.route("/youtube-dl/update", method="GET")
 def update():
-    command = ["pip", "install", "--upgrade", "youtube-dl"]
+    command = ["pip", "install", "--no-cache-dir", "--upgrade" , "--quiet", "youtube-dl", "pytchat"]
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     output, error = proc.communicate()
@@ -121,7 +121,7 @@ done = False
 dl_thread = Thread(target=dl_worker)
 dl_thread.start()
 
-print("Updating youtube-dl to the newest version")
+print("Updating youtube-dl and pytchat to the newest version")
 updateResult = update()
 print(updateResult["output"])
 print(updateResult["error"])
