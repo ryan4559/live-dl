@@ -996,10 +996,45 @@ function func_detect_profile() {
   echo "$DETECTED_PROFILE"
 }
 
+function remove_datetime_in_title {
+  local org="$1"
+  # fulltitle from youtube-dl: 【♯10】オルキスちゃんを救いたい：GRANBLUE FANTASY【ホロライブ/大空スバル】 2021-03-02 10:36
+  local regex="(.+) [[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2} [[:digit:]]{2}[\:_][[:digit:]]{2}"
+  if [[ "$org" =~ $regex ]]; then
+    echo "${BASH_REMATCH[1]}${BASH_REMATCH[3]}"
+  else
+    echo "$org"
+  fi
+}
+
+function escape_filename {
+  # Remove Invalid characters in filename
+  # https://support.microsoft.com/en-us/office/invalid-file-names-and-file-types-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa?ui=en-US&rs=en-US&ad=US#invalidcharacters
+  # Replace " * : < > ? / \ | by _
+  local filename="$1"
+  filename="${filename//\"/_}"
+  filename="${filename//\*/_}"
+  filename="${filename//\:/_}"
+  filename="${filename//\</_}"
+  filename="${filename//\>/_}"
+  filename="${filename//\?/_}"
+  filename="${filename//\//_}"
+  filename="${filename//\\/_}"
+  filename="${filename//\|/_}"
+  echo "${filename}"
+}
+
 function func_process_youtube_metadata() {
   # Extract video info from JSON
   VIDEO_ID=$(echo "$METADATA" | jq -r '.id')
-  FULLTITLE=$(echo "$METADATA" | jq -r '.fulltitle')
+  # 2021.3.1
+  # youtube-dl and its fork Changed its live stream title format (embed datetime into the title)
+  # So we now deprecate getting title from youtube-dl unless we got nothing from curl
+  if [[ -z "$FULLTITLE" ]]; then
+    FULLTITLE=$(echo "$METADATA" | jq -r '.fulltitle')
+    # Remove datetime in title from METADATA youtube-dl
+    FULLTITLE=`remove_datetime_in_title "${FULLTITLE}"`
+  fi
   DESCRIPTION=$(echo "$METADATA" | jq -r '.description')
   UPLOAD_DATE=$(echo "$METADATA" | jq -r '.upload_date')
   UPLOADER=$(echo "$METADATA" | jq -r '.uploader')
@@ -1018,7 +1053,11 @@ function func_process_youtube_metadata() {
       __info "Running remove title function..."
       FILENAME=$(echo "$UPLOAD_DATE ($VIDEO_ID)")
   else
-      FILENAME=$(echo "$METADATA" | jq -r '._filename' | sed -e 's/.mp4//' | sed -e 's/.webm//')
+      # Youtube-dl _filename added datetime
+      # FILENAME=$(echo "$METADATA" | jq -r '._filename' | sed -e 's/.mp4//' | sed -e 's/.webm//')
+      # Remove invalid filename
+      FULLTITLE=`escape_filename "${FULLTITLE}"`
+      FILENAME=$(echo "$UPLOAD_DATE $FULLTITLE ($VIDEO_ID)")
   fi
 }
 
