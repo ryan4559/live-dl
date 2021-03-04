@@ -13,6 +13,8 @@ config:
   #
   # All examples above should work
   output: /youtube-dl/VTuber Recordings
+  # Membership videos will be saved in a separate folder (membership)
+  dir_membership: true
   # same location with youtube-dl web gui
   remove_title: false
   # remove title after download (some Japanese title too long title and can not upload to cloud drive)
