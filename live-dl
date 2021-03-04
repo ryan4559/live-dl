@@ -399,7 +399,8 @@ function func_check_state() {
       _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
       __debug "Detected member only stream $_url"
     else
-      __info "Can not detect member only stream, make sure your cookies_membership.txt is from an account joined membership of channel $_url"
+      func_send_discord "cookies"
+      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
     fi
   fi
 
@@ -917,8 +918,6 @@ function func_send_discord() {
         }'
       elif [ "$_type" == "stop" ]; then
         local _body='{
-          "username": "Live-DL",
-          "avatar_url": "https://i.imgur.com/9BafdJd.png",
           "content": ":white_square_button: '"$UPLOADER"' stopped streaming on '"$DL_PLATFORM"'",
           "embed": {
             "author": {
@@ -951,6 +950,10 @@ function func_send_discord() {
               }
             ]
           }
+        }'
+      elif [ "$_type" == "cookies" ]; then
+        local _body='{
+          "content": " :warning: Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel '"$_url"'"
         }'
       fi
       __info "Sending Discord notification..."
