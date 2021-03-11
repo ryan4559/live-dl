@@ -518,13 +518,19 @@ function func_check_state() {
         __debug "User filter found (Keyword.txt): "$_FILTER""
 
         #compares FULLTITLE with keyword
-        if [[ "$FULLTITLE" =~ $_FILTER ]] || [[ "$FULLTITLE" =~ $FILTER ]]; then
-          __debug "Video title matched, mark as downloadable..."
-          CONTENT_STATE="live"
-
+        if [ ! -z "$FILTER" ]; then
+            if [[ "$FULLTITLE" =~ $FILTER ]]; then
+              __debug "Video title matched, mark as downloadable..."
+              CONTENT_STATE="live"
+            fi
         else
-          CONTENT_STATE="invalid"
-          __info "Video title is not match with keywork, skipping and continue monitoring..."
+          if [[ "$FULLTITLE" =~ $_FILTER ]]; then
+            __debug "Video title matched, mark as downloadable..."
+            CONTENT_STATE="live"
+          else
+            CONTENT_STATE="invalid"
+            __info "Video title is not match with keywork, skipping and continue monitoring..."
+          fi
         fi
       else
       __debug "No keyword filter run, mark as downloadable..."
