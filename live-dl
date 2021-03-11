@@ -355,6 +355,30 @@ function func_check_update() {
     fi
 }
 
+function func_select_cookies() {
+if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
+  # Select cookies_membership.txt for members only post
+  COOKIES_FILE="./config/cookies_membership.txt"
+else
+  COOKIES_FILE="./config/cookies.txt"
+fi
+}
+
+function func_check_membership() {
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
+  # Take first videoID from community and it must be members only post
+  local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
+  local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+
+    if [ -n "$_VIDEO_ID" ]; then
+      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+      __debug "Detected member only stream $_url"
+    else
+      func_send_discord "cookies"
+      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
+    fi
+}
+
 function func_check_state() {
   local _url=$1
   local _mode=$2
@@ -386,27 +410,14 @@ function func_check_state() {
     __info "using address: ${address_param##* }"
   fi
 
-  if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
-    # Select cookies_membership.txt for members only post
-    COOKIES_FILE="./config/cookies_membership.txt"
-  else
-    COOKIES_FILE="./config/cookies.txt"
-  fi
+  # Select cookies for member only stream
+  func_select_cookies
 
+  # If url is Youtube community page,it need redirect channel page check to
+  # video page after got the specific video ID.
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
-    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
-    # Take first videoID from community and it must be members only post
-    local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
-    local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
-
-    if [ -n "$_VIDEO_ID" ]; then
-      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-      __debug "Detected member only stream $_url"
-    else
-      func_send_discord "cookies"
-      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
-    fi
+    func_check_membership
   fi
 
   # Passing useragent causes youtube to return the content to one line. Then grep died.
