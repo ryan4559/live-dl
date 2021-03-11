@@ -373,9 +373,12 @@ function func_check_membership() {
     if [ -n "$_VIDEO_ID" ]; then
       _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
       __debug "Detected member only stream $_url"
+      # Reset counter
+      retry_membership=0
     else
-      func_send_discord "cookies"
-      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
+      retry_membership=$((retry_membership+1))
+      __info "Retrying to detect member only stream. $retry_membership time(s) "
+      sleep 20
     fi
 }
 
@@ -417,7 +420,26 @@ function func_check_state() {
   # video page after got the specific video ID.
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
+    # Add a counter
+    local retry_membership=0
     func_check_membership
+
+    # Retrying 5 times
+    if [ $retry_membership -ge 1 ]; then
+      while [ $retry_membership -le 4 ]; do
+        func_check_membership
+        # Break loop if got value $_VIDEO_ID
+        if [[ $retry_membership == "0" ]]; then
+          break
+        fi
+      done
+    fi
+
+    # After retry 5 times, send notification
+    if [ $retry_membership == "5" ]; then
+      func_send_discord "cookies"
+      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
+    fi
   fi
 
   # Passing useragent causes youtube to return the content to one line. Then grep died.
@@ -509,6 +531,7 @@ function func_check_state() {
       CONTENT_STATE="live"
       fi
 
+    else
       # If `isLive` key not exists, check if it's a valid video (playable)
       if [ "$PLAYABILITY" == "OK" ]; then
         # Then check if it's a channel URL
