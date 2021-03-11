@@ -323,7 +323,7 @@ function func_get_actual_video_url_of_live() {
   fi
 }
 
-function check_update() {
+function func_check_update() {
   # Check the last modified live-dl with the latest live-dl on github
   # I don't want install Git on docker, so use api is enough
   local LASTCOMMIT=`curl -s --compressed -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/herowinb/live-dl/commits?page=1&per_page=1" | jq -r '.[0].commit.committer.date'`
@@ -1521,7 +1521,7 @@ if [ "IMAGE_PROXY" != "true" ]; then
 fi
 
 # Run check update first
-check_update
+func_check_update
 
 # Print current variables for reference
 __info "URL (URI) to process           : ${URL_INPUT}"
