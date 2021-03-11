@@ -126,6 +126,11 @@ while [ $# -gt 0 ]; do
       PARAM_KEYWORD_FILTER=true
       shift
       ;;
+    --filter)
+      PARAM_FILTER="$2"
+      shift
+      shift
+      ;;
     -i|--interval)
       PARAM_INTERVAL="$2"
       shift
@@ -470,23 +475,29 @@ function func_check_state() {
     # will do a secound check using youtube-dl later with this flag.
     if [ "$IS_LIVE" == "true" ]; then
       __info "cURL check seems goes live now, continue checking..."
+
       if [ "$KEYWORD_FILTER" == "true" ]; then
         #read keyword in keyword.txt
         local _FILTER=$(cat ./config/keyword.txt)
-        __debug "Keyword filter: "$_FILTER""
+        _FILTER="${_FILTER//\\}"
+
+        __debug "User filter found: "$FILTER""
+        __debug "User filter found (Keyword.txt): "$_FILTER""
+
         #compares FULLTITLE with keyword
-        local FULLTITLE_FILTER=$(echo "$FULLTITLE" | grep $_FILTER)
-        if [ "$FULLTITLE" == "$FULLTITLE_FILTER" ]; then
-        CONTENT_STATE="live"
+        if [[ "$FULLTITLE" =~ $_FILTER ]] || [[ "$FULLTITLE" =~ $FILTER ]]; then
+          __debug "Video title matched, mark as downloadable..."
+          CONTENT_STATE="live"
+
         else
-        CONTENT_STATE="invalid"
-        __info "Title is not match with keywork, skip download"
+          CONTENT_STATE="invalid"
+          __info "Video title is not match with keywork, skipping and continue monitoring..."
         fi
       else
-      __debug "No keyword filter run"
+      __debug "No keyword filter run, mark as downloadable..."
       CONTENT_STATE="live"
       fi
-    else
+
       # If `isLive` key not exists, check if it's a valid video (playable)
       if [ "$PLAYABILITY" == "OK" ]; then
         # Then check if it's a channel URL
@@ -1431,6 +1442,7 @@ Options:
   --remove-title, -rt         Use to remove title when download, default: false
   --archive-chat, -ac         Use to archive live chat from Youtube live stream, default: false
   --keyword-filter, -kf       Only download if match with keyword filter, default: false
+  --filter                    Filter video titles. Can be single string or regex expression. ie. ASMR|歌
   --interval, -i              Loop interval, unit: second, default: 30
   --long_interval, -li        Longer loop interval, unit: second, default: 900
   --skip-check, -c            Skip dependency check, default: false
@@ -1469,6 +1481,7 @@ CONFIG_DIR_MEMBERSHIP=`echo $CONFIG_RAW | jq -r '.config.dir_membership | select
 CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=null)'`
 CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=null)'`
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
+CONFIG_FILTER=`echo $CONFIG_RAW | jq -r '.config.filter | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
 CONFIG_LONG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.long_interval | select(.!=null)'`
 CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.!=null)'`
@@ -1501,6 +1514,7 @@ BASE_DIR="${_PARAM_BASE_DIR:-$CONFIG_BASE_DIR}"
 REMOVE_TITLE="${PARAM_REMOVE_TITLE:-$CONFIG_REMOVE_TITLE}"
 ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
+FILTER="${PARAM_FILTER:-$CONFIG_FILTER}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
 LONG_INTERVAL="${PARAM_LONG_INTERVAL:-$CONFIG_LONG_INTERVAL}"
 SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
