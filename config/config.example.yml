@@ -12,16 +12,25 @@ config:
   # - ~/My Videos/Live Recordings
   #
   # All examples above should work
+
+  # same location with youtube-dl web gui
   output: /youtube-dl/VTuber Recordings
+
   # Membership videos will be saved in a separate folder (membership)
   dir_membership: true
-  # same location with youtube-dl web gui
-  remove_title: false
+
   # remove title after download (some Japanese title too long title and can not upload to cloud drive)
+  remove_title: false
+
+  # get live chat archive while the stream is still alive (not avaiable on members only stream)
   archive_chat: false
-  # get live chat archive while the stream is still alive
+
+  # only download if match with keyword filter, default: false (download all streams)
   keyword_filter: false
-  # only download if match with keyword filter, file: keyword.txt, using "\|" between 2 keywords
+  # - Can be single string or regex expression. ie. ASMR|歌
+  # - Can be overrided by passing --filter option
+  filter: ""
+
   interval: 30
   long_interval: 600
   skip_check: false

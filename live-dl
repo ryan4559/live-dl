@@ -48,7 +48,7 @@
 #
 # Variables
 #
-USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
+USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36"
 IMAGE_PROXY_BASE="https://experiments.sparanoid.net/imageproxy/"
 
 #
@@ -124,6 +124,11 @@ while [ $# -gt 0 ]; do
       ;;
     -kf|--keyword-filter)
       PARAM_KEYWORD_FILTER=true
+      shift
+      ;;
+    --filter)
+      PARAM_FILTER="$2"
+      shift
       shift
       ;;
     -i|--interval)
@@ -323,7 +328,7 @@ function func_get_actual_video_url_of_live() {
   fi
 }
 
-function check_update() {
+function func_check_update() {
   # Check the last modified live-dl with the latest live-dl on github
   # I don't want install Git on docker, so use api is enough
   local LASTCOMMIT=`curl -s --compressed -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/herowinb/live-dl/commits?page=1&per_page=1" | jq -r '.[0].commit.committer.date'`
@@ -347,6 +352,33 @@ function check_update() {
       UPDATENOTE=""
       UPDATENOTE_SHORT=""
       __debug "$(__yellow "Live-dl is up to date")"
+    fi
+}
+
+function func_select_cookies() {
+if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
+  # Select cookies_membership.txt for members only post
+  COOKIES_FILE="./config/cookies_membership.txt"
+else
+  COOKIES_FILE="./config/cookies.txt"
+fi
+}
+
+function func_check_membership() {
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
+  # Take first videoID from community and it must be members only post
+  local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
+  local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+
+    if [ -n "$_VIDEO_ID" ]; then
+      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+      __debug "Detected member only stream $_url"
+      # Reset counter
+      retry_membership=0
+    else
+      retry_membership=$((retry_membership+1))
+      __info "Retrying to detect member only stream. $retry_membership time(s) "
+      sleep 20
     fi
 }
 
@@ -381,24 +413,30 @@ function func_check_state() {
     __info "using address: ${address_param##* }"
   fi
 
-  if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
-    # Select cookies_membership.txt for members only post
-    COOKIES_FILE="./config/cookies_membership.txt"
-  else
-    COOKIES_FILE="./config/cookies.txt"
-  fi
+  # Select cookies for member only stream
+  func_select_cookies
 
+  # If url is Youtube community page,it need redirect channel page check to
+  # video page after got the specific video ID.
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
-    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
-    # Take first videoID from community and it must be members only post
-    local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
-    local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+    # Add a counter
+    local retry_membership=0
+    func_check_membership
 
-    if [ -n "$_VIDEO_ID" ]; then
-      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-      __debug "Detected member only stream $_url"
-    else
+    # Retrying 5 times
+    if [ $retry_membership -ge 1 ]; then
+      while [ $retry_membership -le 4 ]; do
+        func_check_membership
+        # Break loop if got value $_VIDEO_ID
+        if [[ $retry_membership == "0" ]]; then
+          break
+        fi
+      done
+    fi
+
+    # After retry 5 times, send notification
+    if [ $retry_membership == "5" ]; then
       func_send_discord "cookies"
       __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
     fi
@@ -470,22 +508,29 @@ function func_check_state() {
     # will do a secound check using youtube-dl later with this flag.
     if [ "$IS_LIVE" == "true" ]; then
       __info "cURL check seems goes live now, continue checking..."
+
       if [ "$KEYWORD_FILTER" == "true" ]; then
         #read keyword in keyword.txt
         local _FILTER=$(cat ./config/keyword.txt)
-        __debug "Keyword filter: "$_FILTER""
+        _FILTER="${_FILTER//\\}"
+
+        __debug "User filter found: "$FILTER""
+        __debug "User filter found (Keyword.txt): "$_FILTER""
+
         #compares FULLTITLE with keyword
-        local FULLTITLE_FILTER=$(echo "$FULLTITLE" | grep $_FILTER)
-        if [ "$FULLTITLE" == "$FULLTITLE_FILTER" ]; then
-        CONTENT_STATE="live"
+        if [[ "$FULLTITLE" =~ $_FILTER ]] || [[ "$FULLTITLE" =~ $FILTER ]]; then
+          __debug "Video title matched, mark as downloadable..."
+          CONTENT_STATE="live"
+
         else
-        CONTENT_STATE="invalid"
-        __info "Title is not match with keywork, skip download"
+          CONTENT_STATE="invalid"
+          __info "Video title is not match with keywork, skipping and continue monitoring..."
         fi
       else
-      __debug "No keyword filter run"
+      __debug "No keyword filter run, mark as downloadable..."
       CONTENT_STATE="live"
       fi
+
     else
       # If `isLive` key not exists, check if it's a valid video (playable)
       if [ "$PLAYABILITY" == "OK" ]; then
@@ -1430,7 +1475,8 @@ Options:
   --membership, -mb           Use cookies_membership to download membership videos
   --remove-title, -rt         Use to remove title when download, default: false
   --archive-chat, -ac         Use to archive live chat from Youtube live stream, default: false
-  --keyword-filter, -kf       Only download if match with keyword filter, default: false
+  --keyword-filter, -kf       Only works in channel mode. Download if match with keyword filter, default: false (download all)
+  --filter                    Filter video titles. Can be single string or regex expression. ie. ASMR|歌
   --interval, -i              Loop interval, unit: second, default: 30
   --long_interval, -li        Longer loop interval, unit: second, default: 900
   --skip-check, -c            Skip dependency check, default: false
@@ -1469,6 +1515,7 @@ CONFIG_DIR_MEMBERSHIP=`echo $CONFIG_RAW | jq -r '.config.dir_membership | select
 CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=null)'`
 CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=null)'`
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
+CONFIG_FILTER=`echo $CONFIG_RAW | jq -r '.config.filter | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
 CONFIG_LONG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.long_interval | select(.!=null)'`
 CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.!=null)'`
@@ -1501,6 +1548,7 @@ BASE_DIR="${_PARAM_BASE_DIR:-$CONFIG_BASE_DIR}"
 REMOVE_TITLE="${PARAM_REMOVE_TITLE:-$CONFIG_REMOVE_TITLE}"
 ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
+FILTER="${PARAM_FILTER:-$CONFIG_FILTER}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
 LONG_INTERVAL="${PARAM_LONG_INTERVAL:-$CONFIG_LONG_INTERVAL}"
 SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
@@ -1521,7 +1569,7 @@ if [ "IMAGE_PROXY" != "true" ]; then
 fi
 
 # Run check update first
-check_update
+func_check_update
 
 # Print current variables for reference
 __info "URL (URI) to process           : ${URL_INPUT}"
