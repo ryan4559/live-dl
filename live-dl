@@ -1304,6 +1304,7 @@ function func_download_youtube() {
   if [ "$CONTENT_STATE" == "live" ]; then
 	youtube-dl \
 		--ignore-config \
+    --hls-prefer-native \
 		--hls-use-mpegts \
     --no-part \
 		--fragment-retries 30 \
