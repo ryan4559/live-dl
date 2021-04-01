@@ -367,8 +367,8 @@ fi
 function func_check_membership() {
   local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
   # Take first videoID from community and it must be members only post
-  local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'videoId":"[^"]+' | head -1`
-  local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+  local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'watch\?v[^"]+' | head -1`
+  local _VIDEO_ID=`echo ${_CURL_RAW##*'='}`
 
     if [ -n "$_VIDEO_ID" ]; then
       _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
