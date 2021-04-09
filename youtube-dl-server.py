@@ -24,22 +24,22 @@ app_defaults = {
 }
 
 
-@app.route('/youtube-dl')
+@app.route('/')
 def dl_queue_list():
     return static_file('index.html', root='./')
 
 
-@app.route('/youtube-dl/static/:filename#.*#')
+@app.route('/static/:filename#.*#')
 def server_static(filename):
     return static_file(filename, root='./static')
 
 
-@app.route('/youtube-dl/q', method='GET')
+@app.route('/q', method='GET')
 def q_size():
     return {"success": True, "size": json.dumps(list(dl_q.queue))}
 
 
-@app.route('/youtube-dl/q', method='POST')
+@app.route('/q', method='POST')
 def q_put():
     url = request.forms.get("url")
     options = {
@@ -53,7 +53,7 @@ def q_put():
     print("Added url " + url + " to the download queue")
     return {"success": True, "url": url, "options": options}
 
-@app.route("/youtube-dl/update", method="GET")
+@app.route("/update", method="GET")
 def update():
     command = ["pip", "install", "--no-cache-dir", "--upgrade" , "--quiet", "youtube-dl", "pytchat"]
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

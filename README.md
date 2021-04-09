@@ -18,7 +18,7 @@ Download files location (default): `/youtube-dl/VTuber Recordings`
 
 Download files location (default): `/youtube-dl/`
 
-Web GUI : `http://{{host}}:8080/youtube-dl`
+Web GUI : `http://{{host}}:8080/`
 
 # How run on Synology NAS Docker
 
