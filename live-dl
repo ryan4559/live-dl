@@ -1327,7 +1327,7 @@ function func_download_youtube() {
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
         --retries 30 \
-		    --cookies "./config/cookies.txt" \
+		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
         -o "$OUTPUT_PATH.%(ext)s" \
         "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
@@ -1338,7 +1338,7 @@ function func_download_youtube() {
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
         -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
         --retries 30 \
-		    --cookies "./config/cookies.txt" \
+		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
         -o "$OUTPUT_PATH.%(ext)s" \
         "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
