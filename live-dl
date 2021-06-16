@@ -452,9 +452,17 @@ function func_check_state() {
     fi
   fi
 
-  # Passing useragent causes youtube to return the content to one line. Then grep died.
-  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
+  if [[ "$_url" =~ $regex_community ]] ; then
+    METADATA_CURL_RAW=""
+    PLAYABILITY="invalid"
+    __debug "Skip curl check because no VideoID found in member-only community posts."
 
+  else
+
+    # Passing useragent causes youtube to return the content to one line. Then grep died.
+    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
+
+  fi
   # Extract metadata from fetched page
   METADATA_CURL_RAW=`echo "$_body" | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext'`
 
