@@ -384,7 +384,7 @@ fi
 function func_check_membership() {
   local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
   # Take first videoID from community and it must be members-only post
-  local _CURL_RAW=`echo "$_body" | grep 'label":"Members only"'| grep -Eo 'watch\?v[^"]+' | head -1`
+  local _CURL_RAW=`echo "$_body" | grep -a 'label":"Members only"'| grep -Eo 'watch\?v[^"]+' | head -1`
   local _VIDEO_ID=`echo ${_CURL_RAW##*'='}`
 
     if [ -n "$_VIDEO_ID" ]; then
@@ -395,7 +395,7 @@ function func_check_membership() {
     else
 
       # try again to detect members-only post
-      local _CURL_RAW=`echo "$_body" | grep '"Members only"' | head -1`
+      local _CURL_RAW=`echo "$_body" | grep -a '"Members only"' | head -1`
 
         if [ -n "$_CURL_RAW" ]; then
           __debug "LiveDL can detect member-only post but can not found any VideoID."
@@ -481,7 +481,7 @@ function func_check_state() {
 
   fi
   # Extract metadata from fetched page
-  METADATA_CURL_RAW=`echo "$_body" | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext'`
+  METADATA_CURL_RAW=`echo "$_body" | grep -a 'ytInitialPlayerResponse' | grep -a '<script' | grep -a 'responseContext'`
 
   # Match only JSON part
   # https://regex101.com/r/QiyZE2/3
