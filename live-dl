@@ -114,6 +114,10 @@ while [ $# -gt 0 ]; do
       PARAM_MEMBERSHIP=true
       shift
       ;;
+    -nl|--nolog)
+      PARAM_NO_LOG=true
+      shift
+      ;;
     -rt|--remove-title)
       PARAM_REMOVE_TITLE=true
       shift
@@ -361,6 +365,15 @@ if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; th
   COOKIES_FILE="./config/cookies_membership.txt"
 else
   COOKIES_FILE="./config/cookies.txt"
+fi
+}
+
+function func_select_log() {
+if [[ "$NO_LOG" == "true" ]] ; then
+  # Select cookies_membership.txt for members only post
+  LOG_PATH="/dev/null"
+else
+  LOG_PATH="$OUTPUT_PATH.log"
 fi
 }
 
@@ -699,7 +712,7 @@ function func_send_email() {
           -F from="Livestream Downloader (live-dl) <live-dl@$CONFIG_MAILGUN_DOMAIN>" \
           -F to="$CONFIG_MAILGUN_RECEIPT" \
           -F subject="$_title" \
-          -F text="$_content" >> "$OUTPUT_PATH.log" 2>&1
+          -F text="$_content" >> "$LOG_PATH" 2>&1
       fi
     fi
 
@@ -1233,6 +1246,9 @@ function func_finalize_vars() {
   METADATA_PRETTIFIED=`echo $METADATA | jq .`
   echo "$METADATA_PRETTIFIED" > "$OUTPUT_PATH.json"
 
+  # Select logs location
+  func_select_log
+
   # Download thumbnail
   # youtube-dl has built-in thumbnail download feature via --write-all-thumbnails but it's not
   # perfect due to the limitation of YouTube API, youtube-dl will only get `hqdefault.jpg` for
@@ -1317,7 +1333,7 @@ function func_download_youtube() {
   __info "Start downloading $FILENAME"
 
   # Log tail inspired by https://github.com/printempw/live-stream-recorder
-  __info "Logging: tail -f \"$OUTPUT_PATH.log\""
+  __info "Logging: tail -f \"$LOG_PATH\""
 
   if [ "$CONTENT_STATE" == "live" ]; then
 	youtube-dl \
@@ -1329,7 +1345,7 @@ function func_download_youtube() {
     --retries 60 \
 		--cookies "$COOKIES_FILE" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
-		"${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
+		"${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
   elif [ "$CONTENT_STATE" == "video" ]; then
     if [ "$DL_TYPE" == "playlist" ]; then
       # TODO: You have to loop over all the videos to add metadata and thumbnail manually.
@@ -1348,7 +1364,7 @@ function func_download_youtube() {
 		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
         -o "$OUTPUT_PATH.%(ext)s" \
-        "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
+        "${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
     else
       youtube-dl \
         --ignore-config \
@@ -1359,7 +1375,7 @@ function func_download_youtube() {
 		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
         -o "$OUTPUT_PATH.%(ext)s" \
-        "${WEBPAGE_URL}" >> "$OUTPUT_PATH.log" 2>&1
+        "${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
     fi
   else
     __info "Not a valid URL, skippping"
@@ -1387,7 +1403,7 @@ function func_finalize_download() {
         -metadata description="$DESCRIPTION" \
         -metadata comment="$DESCRIPTION" \
         -movflags faststart \
-        "$OUTPUT_PATH-metadata.mp4" >> "$OUTPUT_PATH.log" 2>&1
+        "$OUTPUT_PATH-metadata.mp4" >> "$LOG_PATH" 2>&1
       rm -f "$OUTPUT_PATH.mp4" && mv "$OUTPUT_PATH-metadata.mp4" "$OUTPUT_PATH.mp4"
     else
       __info "$(__yellow "Output file not exists, skip writing metadata.")"
@@ -1402,14 +1418,14 @@ function func_finalize_download() {
       # Check if artwork avaiable
       if [ -f "$OUTPUT_PATH.jpg" ]; then
         ffmpeg -i "$OUTPUT_PATH.jpg" -y \
-        "$OUTPUT_PATH.png" >> "$OUTPUT_PATH.log" 2>&1
+        "$OUTPUT_PATH.png" >> "$LOG_PATH" 2>&1
         ffmpeg -i "$OUTPUT_PATH.mp4" -y \
           -i "$OUTPUT_PATH.png" \
           -map 1 -map 0 \
           -codec copy \
           -disposition:0 attached_pic \
           -movflags faststart \
-          "$OUTPUT_PATH-artwork.mp4" >> "$OUTPUT_PATH.log" 2>&1
+          "$OUTPUT_PATH-artwork.mp4" >> "$LOG_PATH" 2>&1
         rm -f "$OUTPUT_PATH.mp4" "$OUTPUT_PATH.png" && mv "$OUTPUT_PATH-artwork.mp4" "$OUTPUT_PATH.mp4"
       else
         __info "$(__yellow "Artwork missing, this is a rare case, please report at my GitHub.")"
@@ -1458,7 +1474,7 @@ function func_callback() {
     if [ $CALLBACK_EXEC != "/dev/null" ]; then
       __info "Calling callback function..."
       local cmd=( "$CALLBACK_EXEC" "${OUTPUT_PATH}.mp4" "$BASE_DIR/" "$VIDEO_ID" "$FULLTITLE" "$UPLOADER" "$UPLOAD_DATE" )
-      nohup "${cmd[@]}" &>> "$OUTPUT_PATH.log" &
+      nohup "${cmd[@]}" &>> "$LOG_PATH" &
     else
       __info "$(__yellow "No callback executable specified.")"
     fi
@@ -1536,6 +1552,7 @@ HOME_EXPANDED=$(echo "$HOME" | sed -e 's/\//\\\//g')
 
 CONFIG_MODE=`echo $CONFIG_RAW | jq -r '.config.mode | select(.!=null)'`
 CONFIG_BASE_DIR=`echo $CONFIG_RAW | jq -r .config.output | sed -e 's/~/'"$HOME_EXPANDED"'/g'`
+CONFIG_NO_LOG=`echo $CONFIG_RAW | jq -r '.config.no_log | select(.!=null)'`
 CONFIG_DIR_MEMBERSHIP=`echo $CONFIG_RAW | jq -r '.config.dir_membership | select(.!=null)'`
 CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=null)'`
 CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=null)'`
@@ -1587,6 +1604,7 @@ ADDRESS_POOL="${PARAM_ADDRESS_POOL:-$CONFIG_ADDRESS_POOL}"
 ADDRESS_POOL_FILE="${PARAM_ADDRESS_POOL_FILE:-$CONFIG_ADDRESS_POOL_FILE}"
 ONE_TIME="${PARAM_ONE_TIME:-$CONFIG_ONE_TIME}"
 IMAGE_PROXY="${PARAM_IMAGE_PROXY:-$CONFIG_IMAGE_PROXY}"
+NO_LOG="${PARAM_NO_LOG:-$CONFIG_NO_LOG}"
 URL_INPUT="$1"
 
 if [ "IMAGE_PROXY" != "true" ]; then
@@ -1615,6 +1633,7 @@ __info "Callback                       : ${CALLBACK}"
 __info "Address Pool                   : ${ADDRESS_POOL}"
 __info "Email provider                 : ${CONFIG_EMAIL_PROVIDER}"
 __info "One-time execution             : ${ONE_TIME}"
+__info "No log mode                    : ${NO_LOG}"
 
 # Process URL from user parameter
 func_create_url "$URL_INPUT"

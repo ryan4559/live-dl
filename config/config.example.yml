@@ -41,6 +41,7 @@ config:
   skip_discord: false
   run_callback: false
   address_pool: false
+  no_log: true
   one_time: false
   image_proxy: false
   timezone: Asia/Tokyo
