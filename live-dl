@@ -114,8 +114,12 @@ while [ $# -gt 0 ]; do
       PARAM_MEMBERSHIP=true
       shift
       ;;
-    -nl|--nolog)
+    -nl|--no-log)
       PARAM_NO_LOG=true
+      shift
+      ;;
+    -ao|--audio-only)
+      PARAM_AUDIO_ONLY=true
       shift
       ;;
     -rt|--remove-title)
@@ -1336,6 +1340,11 @@ function func_download_youtube() {
   __info "Logging: tail -f \"$LOG_PATH\""
 
   if [ "$CONTENT_STATE" == "live" ]; then
+
+    if [ "$PARAM_AUDIO_ONLY" == "true" ]; then
+      FORTMAT_OPTION="-f 91 -x"
+    fi
+
 	youtube-dl \
 		--ignore-config \
     --hls-prefer-native \
@@ -1343,10 +1352,18 @@ function func_download_youtube() {
     --no-part \
 		--fragment-retries 30 \
     --retries 60 \
+    $FORTMAT_OPTION \
 		--cookies "$COOKIES_FILE" \
 		-o "${OUTPUT_PATH}${EXTENSION}" \
 		"${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
   elif [ "$CONTENT_STATE" == "video" ]; then
+
+    if [ "$PARAM_AUDIO_ONLY" == "true" ]; then
+      FORTMAT_OPTION="bestaudio[ext=m4a]"
+    else
+      FORTMAT_OPTION="bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+    fi
+
     if [ "$DL_TYPE" == "playlist" ]; then
       # TODO: You have to loop over all the videos to add metadata and thumbnail manually.
       # Or you can add the following parameters to handle it using youtube-dl automatically:
@@ -1359,7 +1376,7 @@ function func_download_youtube() {
         --add-metadata \
         --external-downloader aria2c \
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
-        -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
+        -f "$FORTMAT_OPTION" \
         --retries 30 \
 		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
@@ -1370,7 +1387,7 @@ function func_download_youtube() {
         --ignore-config \
         --external-downloader aria2c \
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
-        -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' \
+        -f "$FORTMAT_OPTION" \
         --retries 30 \
 		    --cookies "$COOKIES_FILE" \
 		    --merge-output-format mp4 \
@@ -1529,6 +1546,8 @@ Options:
   --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error
   --once, -1                  Run only once, default: false
   --debug                     Show debug logs, default: false
+  --no-log, -nl               No logg mode
+  --audio-only, -ao           Audio only mode
   --image-proxy               Enable image proxy for China users, default: false"
   exit 1
 fi
