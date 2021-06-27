@@ -553,19 +553,15 @@ function func_check_state() {
         __debug "User filter found (Keyword.txt): "$_FILTER""
 
         #compares FULLTITLE with keyword
-        if [ ! -z "$FILTER" ]; then
-            if [[ "$FULLTITLE" =~ $FILTER ]]; then
-              __debug "Video title matched, mark as downloadable..."
-              CONTENT_STATE="live"
-            fi
+        if [ ! -z "$FILTER" ] && [[ "$FULLTITLE" =~ $FILTER ]]; then
+          __debug "Video title matched, mark as downloadable..."
+          CONTENT_STATE="live"
+        elif [[ "$FULLTITLE" =~ $_FILTER ]]; then
+          __debug "Video title matched, mark as downloadable..."
+          CONTENT_STATE="live"
         else
-          if [[ "$FULLTITLE" =~ $_FILTER ]]; then
-            __debug "Video title matched, mark as downloadable..."
-            CONTENT_STATE="live"
-          else
-            CONTENT_STATE="invalid"
-            __info "Video title is not match with keywork, skipping and continue monitoring..."
-          fi
+          CONTENT_STATE="invalid"
+          __info "Video title is not match with keywork, skipping and continue monitoring..."
         fi
       else
       __debug "No keyword filter run, mark as downloadable..."
@@ -976,7 +972,7 @@ function func_send_discord() {
 
       if [ "$_type" == "start" ]; then
         local _body='{
-          "content": ":red_circle: '"$UPLOADER"' goes live on '"$DL_PLATFORM"' '"$UPDATENOTE_SHORT"'",
+          "content": ":red_circle: '"$UPLOADER"' goes live on '"$DL_PLATFORM"' '"$UPDATENOTE_SHORT"' '"$MODE_AUDIO_TEXT"'",
           "embed": {
             "author": {
               "name": "'"$UPLOADER"'",
@@ -1014,16 +1010,6 @@ function func_send_discord() {
             "url": "'"$WEBPAGE_URL"'",
             "color": 16085214,
             "fields": [
-              {
-                "name": "Views",
-                "value": "'"$VIEW_COUNT"'",
-                "inline": true
-              },
-              {
-                "name": "Likes/Dislikes",
-                "value": "'"$LIKE_COUNT"'/'"$DISLIKE_COUNT"'",
-                "inline": true
-              },
               {
                 "name": "Duration",
                 "value": "'"$FILE_SUMMARY_DURATION_CALC"'",
@@ -1630,12 +1616,18 @@ if [ "IMAGE_PROXY" != "true" ]; then
   IMAGE_PROXY_BASE=""
 fi
 
+if [ "$PARAM_AUDIO_ONLY" == "true" ]; then
+  MODE_AUDIO_TEXT="- AUDIO ONLY"
+else
+  MODE_AUDIO_TEXT=""
+fi
+
 # Run check update first
 func_check_update
 
 # Print current variables for reference
 __info "URL (URI) to process           : ${URL_INPUT}"
-__info "Mode                           : ${MODE}"
+__info "Mode                           : ${MODE} ${MODE_AUDIO_TEXT}"
 __info "Output base dir                : ${BASE_DIR}"
 __info "Separate folder for membership : ${CONFIG_DIR_MEMBERSHIP}"
 __info "Remove Title                   : ${REMOVE_TITLE}"
