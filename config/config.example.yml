@@ -22,8 +22,9 @@ config:
   # remove title after download (some Japanese title too long title and can not upload to cloud drive)
   remove_title: false
 
-  # get live chat archive while the stream is still alive (not avaiable on members only stream)
+  # get live chat archive while the stream is still alive. Mode: simple (txt file), full (json file)
   archive_chat: false
+  archive_chat_mode: simple
 
   # only download if match with keyword filter, default: false (download all streams)
   keyword_filter: false

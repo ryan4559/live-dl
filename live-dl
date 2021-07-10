@@ -128,6 +128,12 @@ while [ $# -gt 0 ]; do
       ;;
     -ac|--archive-chat)
       PARAM_ARCHIVE_CHAT=true
+      PARAM_ARCHIVE_CHAT_MODE=simple
+      shift
+      ;;
+    -acf|--archive-chat-full)
+      PARAM_ARCHIVE_CHAT=true
+      PARAM_ARCHIVE_CHAT_MODE=full
       shift
       ;;
     -kf|--keyword-filter)
@@ -1299,19 +1305,24 @@ function func_archive_chat() {
   local _type=$1
 
   if [ $ARCHIVE_CHAT == "true" ]; then
-    # get start time (utc format)
-    chat_start_time=$(date +%s%6N --utc)
-    __debug "$(__yellow "Chat start time $chat_start_time ")"
+    __info "Calling chat-downloader to run archive chat."
 
-    if [ "$_type" == "start" ]; then
-      __info "Calling pytchat to run archive chat..."
-      # continuously fetching live chat and appending to $OUTPUT_PATH-chat.json
-      python -u /usr/src/app/youtube-chat.py fetch $VIDEO_ID "$OUTPUT_PATH"
+    if [ $ARCHIVE_CHAT_MODE == "simple" ]; then
+      __debug "Running simple mode."
+      chat_downloader \
+        --cookies "$COOKIES_FILE" \
+        --format example \
+        --format_file ./config/chat-format.json \
+        --output "${OUTPUT_PATH}-chat.txt" \
+        "${WEBPAGE_URL}" >/dev/null 2>&1
 
-    elif [ "$_type" == "stop" ]; then
-      __info "Rendering html from archive chat..."
-      # render $OUTPUT_PATH.html from $OUTPUT_PATH-chat.json, stream start time specified
-      python -u ./youtube-chat.py render $VIDEO_ID "$OUTPUT_PATH" $chat_start_time
+    elif [ $ARCHIVE_CHAT_MODE == "full" ]; then
+      __debug "Running full mode."
+      chat_downloader \
+        --cookies "$COOKIES_FILE" \
+        --output "${OUTPUT_PATH}-chat.json" \
+        "${WEBPAGE_URL}" >/dev/null 2>&1
+
     fi
 
   else
@@ -1518,7 +1529,8 @@ Options:
   --output, -o                Base output directory, default: /youtube-dl/VTuber Recordings
   --membership, -mb           Use cookies_membership to download membership videos
   --remove-title, -rt         Use to remove title when download, default: false
-  --archive-chat, -ac         Use to archive live chat from Youtube live stream, default: false
+  --archive-chat, -ac         Use to archive live chat from Youtube live stream to txt file, default: false
+  --archive-chat-full, -acf   Archive live chat to json file. Support to watch on https://archive.ragtag.moe/player
   --keyword-filter, -kf       Only works in channel mode. Download if match with keyword filter, default: false (download all)
   --filter                    Filter video titles. Can be single string or regex expression. ie. ASMR|歌
   --interval, -i              Loop interval, unit: second, default: 30
@@ -1532,7 +1544,7 @@ Options:
   --address-pool [list.txt]   Use multiple addresses for curl to prevent 429 Error
   --once, -1                  Run only once, default: false
   --debug                     Show debug logs, default: false
-  --no-log, -nl               No logg mode
+  --no-log, -nl               No logs mode
   --audio-only, -ao           Audio only mode
   --image-proxy               Enable image proxy for China users, default: false"
   exit 1
@@ -1561,6 +1573,7 @@ CONFIG_NO_LOG=`echo $CONFIG_RAW | jq -r '.config.no_log | select(.!=null)'`
 CONFIG_DIR_MEMBERSHIP=`echo $CONFIG_RAW | jq -r '.config.dir_membership | select(.!=null)'`
 CONFIG_REMOVE_TITLE=`echo $CONFIG_RAW | jq -r '.config.remove_title | select(.!=null)'`
 CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=null)'`
+CONFIG_ARCHIVE_CHAT_MODE=`echo $CONFIG_RAW | jq -r '.config.archive_chat_mode | select(.!=null)'`
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
 CONFIG_FILTER=`echo $CONFIG_RAW | jq -r '.config.filter | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
@@ -1594,6 +1607,7 @@ MODE="${PARAM_MODE:-$CONFIG_MODE}"
 BASE_DIR="${_PARAM_BASE_DIR:-$CONFIG_BASE_DIR}"
 REMOVE_TITLE="${PARAM_REMOVE_TITLE:-$CONFIG_REMOVE_TITLE}"
 ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
+ARCHIVE_CHAT_MODE="${PARAM_ARCHIVE_CHAT_MODE:-$CONFIG_ARCHIVE_CHAT_MODE}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
 FILTER="${PARAM_FILTER:-$CONFIG_FILTER}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
@@ -1631,7 +1645,7 @@ __info "Mode                           : ${MODE} ${MODE_AUDIO_TEXT}"
 __info "Output base dir                : ${BASE_DIR}"
 __info "Separate folder for membership : ${CONFIG_DIR_MEMBERSHIP}"
 __info "Remove Title                   : ${REMOVE_TITLE}"
-__info "Archive chat                   : ${ARCHIVE_CHAT}"
+__info "Archive chat                   : ${ARCHIVE_CHAT} - Mode: ${ARCHIVE_CHAT_MODE}"
 __info "Keyword filter                 : ${KEYWORD_FILTER}"
 __info "Run interval (when loop)       : ${INTERVAL}"
 __info "Long interval (when loop)      : ${LONG_INTERVAL}"
@@ -1719,10 +1733,9 @@ while true; do
         func_send_slack "start" &
         func_send_telegram "start" &
         func_send_discord "start"
-        func_archive_chat "start" &
+        func_archive_chat &
         func_download_youtube
         func_finalize_download
-        func_archive_chat "stop" &
         func_send_discord "stop" &
         func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
         func_callback
@@ -1770,10 +1783,9 @@ while true; do
     elif [ "$DL_TYPE" == "video" ]; then
 
       if [ "$MODE" == "download" ]; then
-        func_archive_chat "start" &
+        func_archive_chat &
         func_download_youtube
         func_finalize_download
-        func_archive_chat "stop"
         func_callback
         exit 0
       else

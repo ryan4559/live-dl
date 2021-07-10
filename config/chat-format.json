@@ -1,0 +1,19 @@
+{
+    "example": {
+        "template": "{time_text|timestamp}{author.badges}{money.text}{author.display_name|author.name}{author.id}{message}",
+        "keys": {
+            "time_text": "{} | ",
+            "timestamp": {
+                "template": "{} | ",
+                "format": "%Y-%m-%d %H:%M:%S"
+            },
+            "author.badges": {
+                "template": "({}) ",
+                "separator": ", "
+            },
+            "money.text": "*{}* ",
+            "author.id" : " ({})",
+            "message": ": {}"
+        }
+    }
+}
