@@ -1,14 +1,18 @@
 # `New feature`
  * [Run on Docker](#how-run-on-synology-nas-docker)
  * Metadata write
- * Archive live chat (Note: using this feature may make a large size json file if live chat has a high number of users/spam chat or spam emo.)
+ * Archive live chat. Supported member-only stream. 2 modes:
+   * Simple: Txt file, easy to read. You can change format in `/config/chat-format.json`
+   * Full: Json file, playable via  https://archive.ragtag.moe/player
  * Keyword filter
  * [Member only (channel and video) support ](#how-monitor-member-only-stream)
  * [Add option Long interval loop](#how-use-long-interval)
  * Notify (CLI, Discord and Email) when new live-dl updates are available
  * [Discord notification](#how-use-Discord-notification)
+ * Audio only mode
+ * No log mode
 
-<img src="https://i.imgur.com/SMpJJbL.png">
+<img src="https://i.imgur.com/P2ZQjoI.png">
 
 # [`live-dl`](https://github.com/sparanoid/live-dl)
 

@@ -14,3 +14,6 @@ sleep 10
 sleep 20
 
 #nohup /bin/bash /usr/src/app/live-dl -kf -rt https://www.youtube.com/channel/UC1DCedRgGHBdm81E1llLhOQ &>/tmp/live-dl-pekora.$(date +%d%b%y-%H%M%S).log &
+sleep 15
+
+#nohup /bin/bash /usr/src/app/live-dl -kf --filter Unarchive|Karaoke|Sing -ao  https://www.youtube.com/channel/UCP0BspO_AMEe3aQqqpo89Dg &>/youtube-dl/live-dl-moona-audio-only.$(date +%d%b%y-%H%M%S).log &
