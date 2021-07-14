@@ -15,11 +15,13 @@ RUN apk add --no-cache \
   curl  \
   perl  \
 	coreutils \
-	grep
+	grep \
+	gcc \
+	musl-dev
 
 RUN pip3 install yq
 
-RUN pip install bottle youtube-dl pytchat
+RUN pip install bottle youtube-dl chat-downloader
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
