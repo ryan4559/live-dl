@@ -1752,8 +1752,9 @@ while true; do
       # Mode: notifier
       #
       elif [ "$MODE" == "notifier" ]; then
-        func_send_slack "start"
-        func_send_telegram  "start"
+        func_send_slack "start" &
+        func_send_telegram  "start" &
+        func_send_discord "start"
         __info "Notifier mode, no video will be downloaded, continue monitoring..."
 
         while true; do
@@ -1761,8 +1762,9 @@ while true; do
 
           if [ "$CONTENT_STATE" == "unavailable" ]; then
             __info "Live stopped"
-            func_send_slack "stop"
-            func_send_telegram "stop"
+            func_send_slack "stop" &
+            func_send_telegram "stop" &
+            func_send_discord "stop"
             break
           fi
 
