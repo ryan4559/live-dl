@@ -448,6 +448,7 @@ function func_check_state() {
 
   # Select cookies for member only stream
   func_select_cookies
+  __debug "Cookies using: $COOKIES_FILE"
 
   # If url is Youtube community page,it need redirect channel page check to
   # video page after got the specific video ID.
