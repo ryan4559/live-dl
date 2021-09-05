@@ -32,6 +32,7 @@ config:
   # - Can be overrided by passing --filter option
   filter: ""
 
+  ytarchive: true
   interval: 30
   long_interval: 600
   skip_check: false
