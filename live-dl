@@ -419,7 +419,7 @@ function func_check_membership() {
     fi
 }
 
-function func_read_memtadata() {
+function func_read_metadata() {
   M3U8_LINK=`cat "$OUTPUT_PATH.json" | jq '.url'`
   __info "$(__yellow "$M3U8_LINK")"
 }
@@ -1794,9 +1794,6 @@ while true; do
       #
       elif [ "$MODE" == "metadata" ]; then
         __info "Metadata only mode, no video will be downloaded."
-
-        func_read_memtadata
-
         exit 0
 
       #
@@ -1807,6 +1804,7 @@ while true; do
         func_send_telegram  "start" &
         func_send_discord "start"
         __info "Notifier mode, no video will be downloaded, continue monitoring..."
+        func_read_metadata
 
         while true; do
           func_check_state "$DL_URL" "lazy"
@@ -1844,8 +1842,6 @@ while true; do
         exit 0
       else
         __info "Metadata only mode, no video will be downloaded."
-        func_read_memtadata
-
         exit 0
       fi
 
