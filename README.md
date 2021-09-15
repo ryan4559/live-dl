@@ -11,8 +11,9 @@
  * [Discord notification](#how-use-Discord-notification)
  * Audio only mode
  * No log mode
+ * Use [YTARCHIVE.py](https://github.com/Kethsar/ytarchive) to download Youtube Live Stream. If you not change config, Live-dl still use default Youtube-dl
 
-<img src="https://i.imgur.com/P2ZQjoI.png">
+<img src="https://i.imgur.com/kIJUOIs.png">
 
 # [`live-dl`](https://github.com/sparanoid/live-dl)
 

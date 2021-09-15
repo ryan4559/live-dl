@@ -1,0 +1,8 @@
+config/config.yml
+cmd.bat
+config/cookies_membership.txt
+/raw-log/
+config/cookies.txt
+test.py
+ytarchive.py
+/.git/
