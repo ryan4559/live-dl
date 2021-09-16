@@ -1,3 +1,5 @@
+[![Docker Publish](https://github.com/herowinb/live-dl/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/herowinb/live-dl/actions/workflows/docker-publish.yml) [![Docker Pulls](https://img.shields.io/docker/pulls/herowinb/live-dl.svg)](https://hub.docker.com/r/herowinb/live-dl)
+
 # `New feature`
  * [Run on Docker](#how-run-on-synology-nas-docker)
  * Metadata write
