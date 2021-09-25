@@ -1251,44 +1251,8 @@ function func_finalize_vars() {
   # Select logs location
   func_select_log
 
-  # Download thumbnail
-  # youtube-dl has built-in thumbnail download feature via --write-all-thumbnails but it's not
-  # perfect due to the limitation of YouTube API, youtube-dl will only get `hqdefault.jpg` for
-  # finished streams (live streams not affected) because offical API only returns this size even
-  # higher resolution is available (`maxresdefault.jpg`). So I created some additional checks here.
-  #
-  # For stream content, YouTube provides both `maxresdefault.jpg` and `maxresdefault_live.jpg`, but
-  # `maxresdefault.jpg` is more reliable as `maxresdefault_live.jpg` will return black image
-  # (200 HTTP code) even if the streamer set a smaller thumbnail that is only suitable at a smaller
-  # size (hqdefault.jpg)
-  #
-  # Another scenario is that the streamer set an upcoming event with thumbnail-A. But she/he later
-  # changes it to another (thumbnail-B) when stream goes live. `maxresdefault_live.jpg` seems always
-  # returns thumbnail-A while `maxresdefault.jpg` can get the correct thumbnail-B.
-  #
-  # First download thumbnail provided from youtube-dl
   THUMBNAIL_CALC="$THUMBNAIL"
   curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
-
-  # Check thumbnail width
-  THUMB_W=`exiv2 "$OUTPUT_PATH.jpg" | awk -F: '/Image size/ {print $2}' | cut -dx -f1 | tr -d ' '`
-  if [ "$THUMB_W" -lt "1280" ]; then
-    __info "Thumbnail ($THUMBNAIL_CALC) downloeded via youtube-dl is too small, try our own method"
-
-    # Re-assign thumbnail URL
-    THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/maxresdefault.jpg"
-
-    # Check if thumbnail is available (has 200 HTTP response code)
-    local _thumb_resp=$(curl -qSsfw "%{http_code}" $THUMBNAIL_CALC -o /dev/null)
-
-    if [ "$_thumb_resp" != "200" ]; then
-      __info "No high-res thumbnial (maxresdefault.jpg), failback to hqdefault.jpg"
-      THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg"
-      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
-    else
-      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
-    fi
-  fi
 
   # Output summary
   SUMMARY="ID:        $VIDEO_ID
@@ -1430,6 +1394,44 @@ function func_download_bilibili() {
 function func_finalize_download() {
   __info "Stop downloading"
 
+  # Download thumbnail
+  # youtube-dl has built-in thumbnail download feature via --write-all-thumbnails but it's not
+  # perfect due to the limitation of YouTube API, youtube-dl will only get `hqdefault.jpg` for
+  # finished streams (live streams not affected) because offical API only returns this size even
+  # higher resolution is available (`maxresdefault.jpg`). So I created some additional checks here.
+  #
+  # For stream content, YouTube provides both `maxresdefault.jpg` and `maxresdefault_live.jpg`, but
+  # `maxresdefault.jpg` is more reliable as `maxresdefault_live.jpg` will return black image
+  # (200 HTTP code) even if the streamer set a smaller thumbnail that is only suitable at a smaller
+  # size (hqdefault.jpg)
+  #
+  # Another scenario is that the streamer set an upcoming event with thumbnail-A. But she/he later
+  # changes it to another (thumbnail-B) when stream goes live. `maxresdefault_live.jpg` seems always
+  # returns thumbnail-A while `maxresdefault.jpg` can get the correct thumbnail-B.
+  #
+  # First download thumbnail provided from youtube-dl
+  curl -s "$THUMBNAIL_CALC" -C - -o "$OUTPUT_PATH.jpg"
+
+  # Check thumbnail width
+  THUMB_W=`exiv2 "$OUTPUT_PATH.jpg" | awk -F: '/Image size/ {print $2}' | cut -dx -f1 | tr -d ' '`
+  if [ "$THUMB_W" -lt "1280" ]; then
+    __info "Thumbnail ($THUMBNAIL_CALC) downloeded via youtube-dl is too small, try our own method"
+
+    # Re-assign thumbnail URL
+    THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/maxresdefault.jpg"
+
+    # Check if thumbnail is available (has 200 HTTP response code)
+    local _thumb_resp=$(curl -qSsfw "%{http_code}" $THUMBNAIL_CALC -o /dev/null)
+
+    if [ "$_thumb_resp" != "200" ]; then
+      __info "No high-res thumbnial (maxresdefault.jpg), failback to hqdefault.jpg"
+      THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg"
+      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
+    else
+      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
+    fi
+  fi
+
   if [ $SKIP_METADATA == "false" ]; then
     __info "Trying to write metadata and artwork"
 
@@ -1485,7 +1487,6 @@ function func_finalize_download() {
     if [ -f "$OUTPUT_PATH.m4a" ]; then
       OUTPUT_FILE="$OUTPUT_PATH.m4a"
     fi
-    echo $OUTPUT_FILE
     DOWNLOADED_FILE_SUMMARY=`ffprobe -i \
       "$OUTPUT_FILE" \
       -v quiet \
