@@ -572,7 +572,7 @@ function func_check_state() {
           CONTENT_STATE="live"
         else
           CONTENT_STATE="invalid"
-          __info "Video title is not match with keywork, skipping and continue monitoring..."
+          __info "Video title is not match with keyword, skipping and continue monitoring..."
         fi
       else
       __debug "No keyword filter run, mark as downloadable..."
