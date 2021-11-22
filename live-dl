@@ -240,16 +240,16 @@ function func_create_url() {
       DL_URL="$_url"
       DL_TYPE="channel"
 
-    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" ]]; then
+    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" && ! "$_url" =~ "/membership" ]]; then
       __info "YouTube video detected (alt)"
       DL_URL="$_url/live"
       DL_TYPE="channel"
 
-    elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]]; then
-      __info "YouTube community detected (member only stream)"
+    elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]] || [[ "$_url" =~ "/channel" && "$_url" =~ "/membership" ]]; then
+      __info "YouTube membership detected (member only stream)"
       DL_URL="$_url"
       DL_TYPE="channel"
-      DL_OPTION="community"
+      DL_OPTION="membership"
 
     elif [[ "$_url" =~ "/watch"* ]]; then
       __info "YouTube video detected"
@@ -374,7 +374,7 @@ function func_check_update() {
 }
 
 function func_select_cookies() {
-if [[ "$DL_OPTION" == "community" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
+if [[ "$DL_OPTION" == "membership" ]] || [[ "$PARAM_MEMBERSHIP" == "true" ]] ; then
   # Select cookies_membership.txt for members only post
   COOKIES_FILE="./config/cookies_membership.txt"
 else
@@ -393,9 +393,16 @@ fi
 
 function func_check_membership() {
   local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
-  # Take first videoID from community and it must be members-only post
-  local _CURL_RAW=`echo "$_body" | grep -e "tabRenderer" -e '"title": "Membership"' -e 'url'| grep -Eo 'watch\?v[^"]+'| head -1`
-  local _VIDEO_ID=`echo ${_CURL_RAW##*'='}`
+  # Check cookies_membership is valid by checking if the Membership tab exists or not.
+  # All posts in Mebership tab are member-only.
+  local TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
+  __debug "Tab URL: $TAB_URL"
+
+  if [[ $TAB_URL =~ "/membership" ]] ; then
+
+    # Take first videoID from membership tab
+    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[0]' | grep -Eo 'videoId": "[^"]+'| head -1`
+    local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
 
     if [ -n "$_VIDEO_ID" ]; then
       _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
@@ -403,20 +410,14 @@ function func_check_membership() {
       # Reset counter
       retry_membership=0
     else
-
-      # try again to detect members-only post
-      local _CURL_RAW=`echo "$_body" | grep -a '"Members only"' | head -1`
-
-        if [ -n "$_CURL_RAW" ]; then
-          __debug "LiveDL can detect member-only post but can not found any VideoID."
-
-        else
-          # Retry and loop
-          retry_membership=$((retry_membership+1))
-          __info "Retrying to detect member only stream. $retry_membership time(s) "
-          sleep 20
-        fi
+      __debug "LiveDL can detect member-only post but can not found any VideoID."
     fi
+  else
+    # Retry and loop
+    retry_membership=$((retry_membership+1))
+    __info "Retrying to detect member only stream. $retry_membership time(s) "
+    sleep 20
+  fi
 }
 
 function func_check_state() {
@@ -454,10 +455,16 @@ function func_check_state() {
   func_select_cookies
   __debug "Cookies using: $COOKIES_FILE"
 
-  # If url is Youtube community page,it need redirect channel page check to
-  # video page after got the specific video ID.
+  # Replace community URL by membership URL
   local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_community ]] ; then
+    _url=${_url/community/membership}
+  fi
+
+  # If url is Youtube membership page,it need redirect channel page check to
+  # video page after got the specific video ID.
+  local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/membership"
+  if [[ "$_url" =~ $regex_membership ]] ; then
     # Add a counter
     local retry_membership=0
     func_check_membership
@@ -480,10 +487,10 @@ function func_check_state() {
     fi
   fi
 
-  if [[ "$_url" =~ $regex_community ]] ; then
+  if [[ "$_url" =~ $regex_membership ]] ; then
     METADATA_CURL_RAW=""
     PLAYABILITY="invalid"
-    __debug "Skip curl check because no VideoID found in member-only community posts."
+    __debug "Skip curl check because no VideoID found in member-only posts."
 
   else
 
@@ -584,7 +591,7 @@ function func_check_state() {
       if [ "$PLAYABILITY" == "OK" ]; then
         # Then check if it's a channel URL
         if [ "$DL_TYPE" == "channel" ]; then
-          if [ "$DL_OPTION" == "community" ]; then
+          if [ "$DL_OPTION" == "membership" ]; then
             # Skip download member only stream if it is not live
             PLAYABILITY="invalid"
             __debug "Detected member only stream but it not live, skip download"
@@ -1233,7 +1240,7 @@ function func_finalize_vars() {
   # Output base without filename
   OUTPUT_BASE="$BASE_DIR/$FILENAME_BASE"
   # Output base for membership
-  if [[ $DL_OPTION == "community" ]] || [[ $PARAM_MEMBERSHIP == "true" ]]; then
+  if [[ $DL_OPTION == "membership" ]] || [[ $PARAM_MEMBERSHIP == "true" ]]; then
     if [[ $CONFIG_DIR_MEMBERSHIP == "true" ]]; then
       OUTPUT_BASE="$BASE_DIR/$FILENAME_BASE/membership"
     fi
@@ -1553,8 +1560,9 @@ Examples:
   live-dl UC1opHUrw8rvnsadT-iGp7Cg
   live-dl https://youtu.be/4ZBQ1W8jV9A
 
-  Monitor community tab of specific channel (to detect member only stream), download stream when channel goes live:
+  Monitor community/membership tab of specific channel (to detect member only stream), download stream when channel goes live:
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/community
+  live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/membership
 
   Download specific upload, this should be a live stream or finished stream
   live-dl https://www.youtube.com/watch?v=S3CAGeeMRvo

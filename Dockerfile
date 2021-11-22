@@ -15,7 +15,8 @@ RUN apk add --no-cache \
   curl  \
   perl  \
 	coreutils \
-	grep
+	grep \
+	curl
 
 RUN pip3 install yq
 
