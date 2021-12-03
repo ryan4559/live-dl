@@ -400,25 +400,17 @@ function func_check_membership() {
 
   if [[ $TAB_URL =~ "/membership" ]] ; then
 
-    # Take first videoID from membership tab
-    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0]'`
-    # Take VideoID from first post have Badges "Members only"
-    local _CURL_RAW_BADGES=`echo $_CURL_RAW | grep -Eo '"label": "Members only"'`
-
-    if [[ -n "$_CURL_RAW_BADGES" ]]; then
-      local _CURL_RAW_VIDEO_ID=`echo $_CURL_RAW | grep -Eo 'videoId": "[^"]+'| head -1`
-      local _VIDEO_ID=`echo ${_CURL_RAW_VIDEO_ID##*'"'}`
-
-      if [ -n "$_VIDEO_ID" ]; then
-        _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-        __debug "Detected member only stream $_url"
-        # Reset counter
-        retry_membership=0
-      else
-        __debug "LiveDL can detect member-only post but can not found any VideoID."
-      fi
+    # Take first VideoID from all posts have Badges "Members only"
+    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[] | select(.backstagePostThreadRenderer.post.backstagePostRenderer.backstageAttachment.videoRenderer.badges[0].metadataBadgeRenderer.label=="Members only")'`
+    local _CURL_RAW_VIDEO_ID=`echo $_CURL_RAW | grep -Eo 'videoId": "[^"]+'| head -1`
+    local _VIDEO_ID=`echo ${_CURL_RAW_VIDEO_ID##*'"'}`
+    if [ -n "$_VIDEO_ID" ]; then
+      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+      __debug "Detected member only stream $_url"
+      # Reset counter
+      retry_membership=0
     else
-      __debug "LiveDL can detect membership tab but first post in community tab is not member-only post."
+      __debug "LiveDL can detect member-only posts but can not found any VideoID."
     fi
   else
     # Retry and loop
