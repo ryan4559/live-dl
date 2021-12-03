@@ -396,21 +396,29 @@ function func_check_membership() {
   # Check cookies_membership is valid by checking if the Membership tab exists or not.
   # All posts in Mebership tab are member-only.
   local TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
-  __debug "Tab URL: $TAB_URL"
+  __debug "Tab Membership check: $TAB_URL"
 
   if [[ $TAB_URL =~ "/membership" ]] ; then
 
     # Take first videoID from membership tab
-    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[0]' | grep -Eo 'videoId": "[^"]+'| head -1`
-    local _VIDEO_ID=`echo ${_CURL_RAW##*'"'}`
+    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0]'`
+    # Take VideoID from first post have Badges "Members only"
+    local _CURL_RAW_BADGES=`echo $_CURL_RAW | grep -Eo '"label": "Members only"'`
 
-    if [ -n "$_VIDEO_ID" ]; then
-      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-      __debug "Detected member only stream $_url"
-      # Reset counter
-      retry_membership=0
+    if [[ -n "$_CURL_RAW_BADGES" ]]; then
+      local _CURL_RAW_VIDEO_ID=`echo $_CURL_RAW | grep -Eo 'videoId": "[^"]+'| head -1`
+      local _VIDEO_ID=`echo ${_CURL_RAW_VIDEO_ID##*'"'}`
+
+      if [ -n "$_VIDEO_ID" ]; then
+        _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+        __debug "Detected member only stream $_url"
+        # Reset counter
+        retry_membership=0
+      else
+        __debug "LiveDL can detect member-only post but can not found any VideoID."
+      fi
     else
-      __debug "LiveDL can detect member-only post but can not found any VideoID."
+      __debug "LiveDL can detect membership tab but first post in community tab is not member-only post."
     fi
   else
     # Retry and loop
@@ -455,16 +463,16 @@ function func_check_state() {
   func_select_cookies
   __debug "Cookies using: $COOKIES_FILE"
 
-  # Replace community URL by membership URL
-  local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
-  if [[ "$_url" =~ $regex_community ]] ; then
-    _url=${_url/community/membership}
-  fi
-
-  # If url is Youtube membership page,it need redirect channel page check to
-  # video page after got the specific video ID.
+  # Replace membership URL by community URL
   local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/membership"
   if [[ "$_url" =~ $regex_membership ]] ; then
+    _url=${_url/membership/community}
+  fi
+
+  # If url is Youtube community page,it need redirect channel page check to
+  # video page after got the specific video ID.
+  local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
+  if [[ "$_url" =~ $regex_community ]] ; then
     # Add a counter
     local retry_membership=0
     func_check_membership
@@ -487,10 +495,10 @@ function func_check_state() {
     fi
   fi
 
-  if [[ "$_url" =~ $regex_membership ]] ; then
+  if [[ "$_url" =~ $regex_community ]] ; then
     METADATA_CURL_RAW=""
     PLAYABILITY="invalid"
-    __debug "Skip curl check because no VideoID found in member-only posts."
+    __debug "Skip curl check because no VideoID found in member-only posts or cookies_membership expired."
 
   else
 
