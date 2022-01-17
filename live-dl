@@ -1812,7 +1812,7 @@ while true; do
         while true; do
           func_check_state "$DL_URL" "lazy"
 
-          if [ "$CONTENT_STATE" == "unavailable" ]; then
+          if [ "$CONTENT_STATE" != "live" ]; then
             __info "Live stopped"
             func_send_slack "stop" &
             func_send_telegram "stop" &
