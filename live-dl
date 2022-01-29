@@ -1329,6 +1329,7 @@ function func_download_youtube() {
         -c "$COOKIES_FILE" \
         --save \
         --merge \
+        --no-frag-files \
         -r 30 \
         "${WEBPAGE_URL}" $FORTMAT_OPTION >> "$LOG_PATH" 2>&1
 
