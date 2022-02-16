@@ -411,6 +411,8 @@ function func_check_membership() {
       retry_membership=0
     else
       __debug "LiveDL can detect member-only posts but can not found any VideoID."
+      # Reset counter
+      retry_membership=0
     fi
   else
     # Retry and loop
@@ -473,7 +475,7 @@ function func_check_state() {
     if [ $retry_membership -ge 1 ]; then
       while [ $retry_membership -le 4 ]; do
         func_check_membership
-        # Break loop if got value $_VIDEO_ID
+        # Break loop if got member-only posts
         if [[ $retry_membership == "0" ]]; then
           break
         fi
