@@ -271,6 +271,11 @@ function func_create_url() {
       __info "$(__red "Non-supported YouTube URL")"
       exit 1
     fi
+  elif [[ "$_url" =~ "twitch.tv" ]]; then
+    __info "Twitch detected"
+    DL_URL="$_url"
+    DL_PLATFORM="Twitch"
+    DL_TYPE="Twitch"
 
   elif [[ "$_url" =~ "live.bilibili.com" ]]; then
     __info "Bilibili detected"
@@ -682,6 +687,112 @@ function func_check_state() {
           elif [ "$_is_live" == "null" ]; then
             __debug "Got state: video";
             CONTENT_STATE="video"
+          else
+            __info "youtube-dl does not returns a valid state";
+            CONTENT_STATE="invalid"
+          fi
+        else
+          __debug "$METADATA"
+          if [[ "$METADATA" =~ "This video is unavailable" ]]; then
+            # Suppress `video is unavailable` errors since they're common when stream is not live
+            __debug "This video is unavailable, maybe not live at the moment."
+            CONTENT_STATE="unavailable"
+          elif [[ "$METADATA" =~ "HTTP Error 404" ]]; then
+            __info "$(__yellow "Not a valid video page (Error 404)!")"
+            CONTENT_STATE="not_found"
+          elif [[ "$METADATA" =~ "HTTP Error 429" ]]; then
+            __info "$(__yellow "Your IP is limited by YouTube (Error 429)! Check here: https://github.com/herowinb/live-dl/issues/3 ")"
+            CONTENT_STATE="too_many_requests"
+          else
+            __info "$(__yellow "Unknown metadata")"
+            __info "$METADATA"
+            CONTENT_STATE="invalid"
+          fi
+        fi
+      else
+        __info "$(__yellow "Second check failed, not valid youtube-dl metadata")"
+        CONTENT_STATE="invalid"
+      fi
+
+      # Print current state for second check
+      __debug "Current state for second check: $(__yellow "$CONTENT_STATE")"
+    fi
+  fi
+}
+
+# Clone of func_check_state but for Twitch
+function func_check_state_twitch() {
+  local _url=$1
+
+  __debug "start func_check_state_twitch"
+
+  CONTENT_STATE="invalid"
+
+  local address_param=$(func_gen_curl_address_param)
+  if [ "$address_param" ]; then
+    __info "using address: ${address_param##* }"
+  fi
+
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
+
+  if [[ "$_body" == *"isLiveBroadcast"* ]]; then
+
+    METADATA_CURL=`echo "$_body" | sed 's/^.*application\/ld+json">//' | sed 's/<\/script.*$//' | jq -r . `
+
+    if [ ! -z "$METADATA_CURL" ]; then
+      __debug "Got valid cURL metadata"
+
+      IS_LIVE=$(echo $METADATA_CURL | jq -r '.[].publication.isLiveBroadcast | select(.!=null)')
+      __debug "Is live: $IS_LIVE"
+      UPLOADER=$(echo "$METADATA_CURL" | jq -r '.[].name')
+    fi
+
+    if [ "$IS_LIVE" == "true" ]; then
+      __info "cURL check seems goes live now, continue checking..."
+      __info "Re-checking via youtube-dl..."
+
+      local _youtube_dl_address_param=$(func_gen_youtube_dl_address_param)
+      if [ "$_youtube_dl_address_param" ]; then
+        __info "using address: ${_youtube_dl_address_param##* }"
+      fi
+      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
+        --skip-download --print-json --referer 'https://www.twitch.tv/directory' \
+        -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
+        ${_youtube_dl_address_param} \
+        "$_url" 2>&1`
+
+      if [ ! -z "$METADATA" ]; then
+        __debug "Got valid youtube-dl metadata"
+
+        if [[ "$METADATA" == '{'* ]]; then
+          # use 2>/dev/null to ignore errors line when use jq
+          local _is_live=`echo "$METADATA" | jq '.is_live' 2>/dev/null`
+
+          VIDEO_ID=$(echo "$METADATA" | jq -r '.id' 2>/dev/null)
+          FULLTITLE=$(echo "$METADATA" | jq -r '.description' 2>/dev/null) # Default .fulltitle is Twitchusername (live) date time. So don't use it
+          DESCRIPTION=$(echo "$METADATA" | jq -r '.description' 2>/dev/null)
+          UPLOAD_DATE=$(echo "$METADATA" | jq -r '.upload_date' 2>/dev/null)
+          UPLOADER=$(echo "$METADATA" | jq -r '.uploader' 2>/dev/null)
+          CHANNEL_ID=$(echo "$METADATA" | jq -r '.webpage_url' 2>/dev/null)
+          THUMBNAIL=$(echo "$METADATA" | jq -r '.thumbnail' 2>/dev/null)
+          WEBPAGE_URL=$(echo "$METADATA" | jq -r '.webpage_url' 2>/dev/null)
+          CHANNEL_URL=$(echo "$METADATA" | jq -r '.webpage_url' 2>/dev/null)
+
+          if [ $REMOVE_TITLE == "true" ]; then
+              __info "Running remove title function..."
+              FILENAME=$(echo "$UPLOAD_DATE ($VIDEO_ID)")
+          else
+              FULLTITLE=`escape_filename "${FULLTITLE}"`
+              FILENAME=$(echo "$UPLOAD_DATE $FULLTITLE ($VIDEO_ID)")
+          fi
+
+          func_process_channel_mapping
+
+          func_finalize_vars
+
+          if [ "$_is_live" == "true" ]; then
+            __debug "Got state: live";
+            CONTENT_STATE="live"
           else
             __info "youtube-dl does not returns a valid state";
             CONTENT_STATE="invalid"
@@ -1165,8 +1276,13 @@ function func_process_channel_mapping() {
   # https://stackoverflow.com/a/40027637/412385
 
   if [ "$CHANNEL_ID" ]; then
-    UPLOADER_MAPPED_RAW=`echo "$CONFIG_RAW" | jq -r --arg CHANNEL_ID "$CHANNEL_ID" \
-      '.map[] | select(.youtube | contains($CHANNEL_ID))'`
+    if [[ $DL_PLATFORM == "Twitch" ]]; then
+      UPLOADER_MAPPED_RAW=`echo "$CONFIG_RAW" | jq -r --arg CHANNEL_ID "$CHANNEL_ID" \
+        '.map[] | select(.twitch==$CHANNEL_ID)'`
+    else
+      UPLOADER_MAPPED_RAW=`echo "$CONFIG_RAW" | jq -r --arg CHANNEL_ID "$CHANNEL_ID" \
+        '.map[] | select(.youtube | contains($CHANNEL_ID))'`
+    fi
 
     # Check if current uploader has custom name mapping in config
     UPLOADER_MAPPED=`echo "$UPLOADER_MAPPED_RAW" | jq -r .name`
@@ -1248,13 +1364,17 @@ function func_finalize_vars() {
     fi
   fi
 
+#  if [[ $DL_PLATFORM == "Twitch" ]]; then
+#    OUTPUT_BASE="$BASE_DIR/$FILENAME_BASE/twitch"
+#  fi
+
   # Full output dir
   FILENAME=$(func_create_file_name "$FILENAME" "$OUTPUT_BASE")
   OUTPUT_PATH="$OUTPUT_BASE/$FILENAME"
 
   # Write prettified JSON metadata to file
   func_prepare_dir "$OUTPUT_BASE"
-  METADATA_PRETTIFIED=`echo $METADATA | jq .`
+  METADATA_PRETTIFIED=`echo $METADATA | jq . 2>/dev/null`
   echo "$METADATA_PRETTIFIED" > "$OUTPUT_PATH.json"
 
   # Select logs location
@@ -1395,6 +1515,27 @@ function func_download_youtube() {
   else
     __info "Not a valid URL, skippping"
   fi
+}
+
+function func_download_twitch() {
+  __info "Start downloading $FILENAME"
+
+  # Log tail inspired by https://github.com/printempw/live-stream-recorder
+  __info "Logging: tail -f \"$LOG_PATH\""
+
+  if [ "$CONTENT_STATE" == "live" ]; then
+  	youtube-dl \
+  		--ignore-config \
+      --hls-prefer-native \
+  		--hls-use-mpegts \
+      --no-part \
+  		--fragment-retries 30 \
+      --retries 60 \
+      $FORTMAT_OPTION \
+  		--cookies "$COOKIES_FILE" \
+  		-o "${OUTPUT_PATH}${EXTENSION}" \
+  		"${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
+    fi
 }
 
 function func_download_bilibili() {
@@ -1728,7 +1869,12 @@ while true; do
     # Check if url types and live available
     # After creating URL with func_create_url, I need to further process the URL to determine
     # the type (video, live stream) and state (is live or not ) of the given URL
-    func_check_state "$DL_URL"
+
+    if [ "$DL_PLATFORM" == "Twitch" ]; then
+      func_check_state_twitch "$DL_URL"
+    else
+      func_check_state "$DL_URL"
+    fi
 
     INTERVAL2=$INTERVAL
       # Get the time now and compare with upcoming time
@@ -1769,7 +1915,7 @@ while true; do
   #
   # Platform: YouTube
   #
-  if [ "$DL_PLATFORM" == "YouTube" ]; then
+  if [ "$DL_PLATFORM" == "YouTube" ] || [ "$DL_PLATFORM" == "Twitch" ]; then
     # Print summary
     echo -e "\n$SUMMARY"
 
@@ -1856,6 +2002,18 @@ while true; do
     #
     elif [ "$DL_TYPE" == "playlist" ]; then
       __info "Type: YouTube playlist"
+
+    elif [ "$DL_TYPE" == "Twitch" ]; then
+      _break=$'\n\n'
+      func_send_email "🔴 [YouTube] $UPLOADER - $FULLTITLE" "$_break$UPDATENOTE$_break$SUMMARY_TRIM$_break$DESCRIPTION" &
+      func_send_slack "start" &
+      func_send_telegram "start" &
+      func_send_discord "start"
+      func_download_twitch
+      func_finalize_download
+      func_send_discord "stop" &
+      func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
+      func_callback
 
     #
     # Type: Unknown
