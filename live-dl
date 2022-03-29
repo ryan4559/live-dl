@@ -809,6 +809,9 @@ function func_check_state_twitch() {
           elif [[ "$METADATA" =~ "HTTP Error 429" ]]; then
             __info "$(__yellow "Your IP is limited by YouTube (Error 429)! Check here: https://github.com/herowinb/live-dl/issues/3 ")"
             CONTENT_STATE="too_many_requests"
+          elif [[ "$METADATA" =~ "is offline" ]]; then
+            __debug "Stream already offline or maybe not live at the moment."
+            CONTENT_STATE="offline"
           else
             __info "$(__yellow "Unknown metadata")"
             __info "$METADATA"
