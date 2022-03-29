@@ -1880,6 +1880,7 @@ while true; do
     fi
 
     INTERVAL2=$INTERVAL
+    if [ "$DL_PLATFORM" == "YouTube" ]; then
       # Get the time now and compare with upcoming time
       # If upcoming time longer than LONG_INTERVAL, live-dl will use LONG_INTERVAL
       # If upcoming time less than LONG_INTERVAL, live-dl will use INTERVAL
@@ -1895,6 +1896,7 @@ while true; do
           INTERVAL2=$LONG_INTERVAL
         fi
       fi
+    fi
 
     if [ "$CONTENT_STATE" == "live" ]; then
       break
@@ -2012,6 +2014,7 @@ while true; do
       func_send_slack "start" &
       func_send_telegram "start" &
       func_send_discord "start"
+      func_archive_chat &
       func_download_twitch
       func_finalize_download
       func_send_discord "stop" &
