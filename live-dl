@@ -1748,6 +1748,10 @@ if ! [ -f ./config/config.yml ]; then
   exit 1;
 else
   CONFIG_RAW=`cat ./config/config.yml | yq -rR .`
+  if [[ -z $CONFIG_RAW ]]; then
+    __info "$(__red "Wrong config.yml format, make sure you have configured the correct format.")"
+    exit 1;
+  fi
 fi
 
 # Set default settings
