@@ -2,16 +2,19 @@
 
 # `New feature`
  * [Run on Docker](#how-run-on-synology-nas-docker)
+ * Site support:
+   * Youtube.com (and youtu.be)
+   * Twitch.tv
  * Metadata write
  * Archive live chat. Supported member-only stream. 2 modes:
    * Simple: Txt file, easy to read. You can change format in `/config/chat-format.json`
    * Full: Json file, playable via  https://archive.ragtag.moe/player
- * Keyword filter
- * [Member only (channel and video) support ](#how-monitor-member-only-stream)
- * [Add option Long interval loop](#how-use-long-interval)
+ * Keyword filter (Not apply to Twitch)
+ * [Member only (channel and video) support ](#how-monitor-member-only-stream) (Not apply to Twitch)
+ * [Add option Long interval loop](#how-use-long-interval) (Not apply to Twitch)
  * Notify (CLI, Discord and Email) when new live-dl updates are available
  * [Discord notification](#how-use-Discord-notification)
- * Audio only mode
+ * Audio only mode (Not apply to Twitch)
  * No log mode
  * Use [YTARCHIVE.py](https://github.com/Kethsar/ytarchive) to download Youtube Live Stream. If you not change config, Live-dl still use default Youtube-dl
 

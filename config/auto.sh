@@ -17,3 +17,7 @@ sleep 20
 sleep 15
 
 #nohup /bin/bash /usr/src/app/live-dl -kf --filter Unarchive|Karaoke|Sing -ao  https://www.youtube.com/channel/UCP0BspO_AMEe3aQqqpo89Dg &>/youtube-dl/live-dl-moona-audio-only.$(date +%d%b%y-%H%M%S).log &
+
+sleep 15
+
+#nohup /bin/bash /usr/src/app/live-dl -i 60 -ac https://www.twitch.tv/*** &>/youtube-dl/live-dl-***.$(date +%d%b%y-%H%M%S).log &
