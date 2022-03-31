@@ -20,4 +20,4 @@ sleep 15
 
 sleep 15
 
-#nohup /bin/bash /usr/src/app/live-dl -ac https://www.twitch.tv/*** &>/youtube-dl/live-dl-***.$(date +%d%b%y-%H%M%S).log &
+#nohup /bin/bash /usr/src/app/live-dl -i 60 -ac https://www.twitch.tv/*** &>/youtube-dl/live-dl-***.$(date +%d%b%y-%H%M%S).log &
