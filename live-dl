@@ -506,15 +506,14 @@ function func_check_state() {
 
   fi
   # Extract metadata from fetched page
-  METADATA_CURL_RAW=`echo "$_body" | grep -a 'ytInitialPlayerResponse' | grep -a '<script' | grep -a 'responseContext'`
+  # METADATA_CURL_RAW=`echo "$_body" | grep -a 'ytInitialPlayerResponse' | grep -a '<script' | grep -a 'responseContext'`
 
   # Match only JSON part
   # https://regex101.com/r/QiyZE2/3
   #
   # Debug commmand if YouTube changes its HTML structure in the future:
   # $ curl -s --compressed -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36" 'https://www.youtube.com/watch?v=j2z06YUbulk' | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext' | perl -pe 's/^.*?ytInitialPlayerResponse = ({".*]});var .*/\1/g' | jq -r .
-  METADATA_CURL=`echo "$METADATA_CURL_RAW" | perl -pe 's/^.*?ytInitialPlayerResponse = (\{".*});var meta.*/\1/g' | grep -av '<script' | jq -r .`
-
+  METADATA_CURL=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p' | jq -r .`
   # Check if returns nothing
   if [ ! -z "$METADATA_CURL" ]; then
     __debug "Got valid cURL metadata"
