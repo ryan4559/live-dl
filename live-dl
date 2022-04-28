@@ -400,13 +400,13 @@ function func_check_membership() {
   local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
   # Check cookies_membership is valid by checking if the Membership tab exists or not.
   # All posts in Mebership tab are member-only.
-  local TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
+  local TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
   __debug "Tab Membership check: $TAB_URL"
 
   if [[ $TAB_URL =~ "/membership" ]] ; then
 
     # Take first VideoID from all posts have Badges "Members only"
-    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^*]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[] | select(.backstagePostThreadRenderer.post.backstagePostRenderer.backstageAttachment.videoRenderer.badges[0].metadataBadgeRenderer.label=="Members only")'`
+    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[] | select(.backstagePostThreadRenderer.post.backstagePostRenderer.backstageAttachment.videoRenderer.badges[0].metadataBadgeRenderer.label=="Members only")'`
     local _CURL_RAW_VIDEO_ID=`echo $_CURL_RAW | grep -Eo 'videoId": "[^"]+'| head -1`
     local _VIDEO_ID=`echo ${_CURL_RAW_VIDEO_ID##*'"'}`
     if [ -n "$_VIDEO_ID" ]; then
@@ -513,7 +513,7 @@ function func_check_state() {
   #
   # Debug commmand if YouTube changes its HTML structure in the future:
   # $ curl -s --compressed -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36" 'https://www.youtube.com/watch?v=j2z06YUbulk' | grep 'ytInitialPlayerResponse' | grep '<script' | grep 'responseContext' | perl -pe 's/^.*?ytInitialPlayerResponse = ({".*]});var .*/\1/g' | jq -r .
-  METADATA_CURL=`echo "$_body" | sed -n 's/.*var ytInitialPlayerResponse = \({[^*<]*}\);.*/\1/p'| jq -r .`
+  METADATA_CURL=`echo "$_body" | sed -n 's/.*var ytInitialPlayerResponse = \({[^<]*}\);.*/\1/p'| jq -r .`
   # Check if returns nothing
   if [ ! -z "$METADATA_CURL" ]; then
     __debug "Got valid cURL metadata"
