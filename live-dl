@@ -1949,7 +1949,11 @@ while true; do
         func_send_telegram "start" &
         func_send_discord "start"
         func_archive_chat &
-        func_download_youtube
+        if [ "$DL_TYPE" == "Twitch" ]; then
+          func_download_twitch
+        else
+          func_download_youtube
+        fi
         func_finalize_download
         func_send_discord "stop" &
         func_send_email "⚫️ [YouTube] $UPLOADER - $FULLTITLE" "$FILE_SUMMARY_TRIM" &
