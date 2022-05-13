@@ -606,16 +606,16 @@ function func_check_state() {
       fi
     fi
 
-      # Then check if the stream just goes offline
-      if [ "$PLAYABILITY" == "LIVE_STREAM_OFFLINE" ]; then
-        CONTENT_STATE="offline"
+    # Then check if the stream just goes offline
+    if [ "$PLAYABILITY" == "LIVE_STREAM_OFFLINE" ]; then
+      CONTENT_STATE="offline"
 
-        # Check if upcoming event available
-        if [ ! -z "$UPCOMING_TIME" ]; then
-          local _date_calc=`date -d @$UPCOMING_TIME`
-          __info "$(__yellow "Upcoming event detected: $_date_calc")"
-        fi
+      # Check if upcoming event available
+      if [ ! -z "$UPCOMING_TIME" ]; then
+        local _date_calc=`date -d @$UPCOMING_TIME`
+        __info "$(__yellow "Upcoming event detected: $_date_calc")"
       fi
+    fi
 
     # Print current state for first check
     __debug "Current state for first check: $(__yellow "$CONTENT_STATE")"
