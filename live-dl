@@ -616,7 +616,6 @@ function func_check_state() {
           __info "$(__yellow "Upcoming event detected: $_date_calc")"
         fi
       fi
-    fi
 
     # Print current state for first check
     __debug "Current state for first check: $(__yellow "$CONTENT_STATE")"
@@ -1450,7 +1449,7 @@ function func_download_youtube() {
         FORTMAT_OPTION="best"
       fi
 
-      python /usr/src/app/ytarchive.py \
+      python ./ytarchive.py \
         --no-wait \
         -o "${OUTPUT_PATH}" \
         -c "$COOKIES_FILE" \
