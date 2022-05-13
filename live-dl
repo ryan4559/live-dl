@@ -246,7 +246,7 @@ function func_create_url() {
       DL_TYPE="channel"
 
     elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]] || [[ "$_url" =~ "/channel" && "$_url" =~ "/membership" ]]; then
-      __info "YouTube membership detected (member only stream)"
+      __info "YouTube membership detected (member-only stream)"
       DL_URL="$_url"
       DL_TYPE="channel"
       DL_OPTION="membership"
@@ -405,24 +405,25 @@ function func_check_membership() {
 
   if [[ $TAB_URL =~ "/membership" ]] ; then
 
-    # Take first VideoID from all posts have Badges "Members only"
-    local _CURL_RAW=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[] | select(.backstagePostThreadRenderer.post.backstagePostRenderer.backstageAttachment.videoRenderer.badges[0].metadataBadgeRenderer.label=="Members only")'`
-    local _CURL_RAW_VIDEO_ID=`echo $_CURL_RAW | grep -Eo 'videoId": "[^"]+'| head -1`
-    local _VIDEO_ID=`echo ${_CURL_RAW_VIDEO_ID##*'"'}`
+    # Take VideoID from first SCHEDULED member-only video(s) in Membership tab
+    local _VIDEO_ID=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^>]*}\);.*/\1/p' | jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[] | \
+    select((.videoRenderer!=null) and (.videoRenderer.lengthText==null))' | \
+     jq -r '.videoRenderer.videoId'| head -1`
+
     if [ -n "$_VIDEO_ID" ]; then
       _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-      __debug "Detected member only stream $_url"
+      __debug "Detected member-only stream $_url"
       # Reset counter
       retry_membership=0
     else
-      __debug "LiveDL can detect member-only posts but can not found any VideoID."
+      __debug "LiveDL can detect Membership tab but can not found any scheduled member-only video(s) in Membership tab."
       # Reset counter
       retry_membership=0
     fi
   else
     # Retry and loop
     retry_membership=$((retry_membership+1))
-    __info "Retrying to detect member only stream. $retry_membership time(s) "
+    __info "Retrying to detect member-only stream. $retry_membership time(s) "
     sleep 20
   fi
 }
@@ -458,20 +459,20 @@ function func_check_state() {
     __info "using address: ${address_param##* }"
   fi
 
-  # Select cookies for member only stream
+  # Select cookies for member-only stream
   func_select_cookies
   __debug "Cookies using: $COOKIES_FILE"
 
-  # Replace membership URL by community URL
-  local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/membership"
+  # Replace community URL by membership URL
+  local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/community"
   if [[ "$_url" =~ $regex_membership ]] ; then
-    _url=${_url/membership/community}
+    _url=${_url/community/membership}
   fi
 
   # If url is Youtube community page,it need redirect channel page check to
   # video page after got the specific video ID.
-  local regex_community="https:\/\/www.youtube.com\/channel\/(.+)\/community"
-  if [[ "$_url" =~ $regex_community ]] ; then
+  local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/membership"
+  if [[ "$_url" =~ $regex_membership ]] ; then
     # Add a counter
     local retry_membership=0
     func_check_membership
@@ -490,14 +491,14 @@ function func_check_state() {
     # After retry 5 times, send notification
     if [ $retry_membership == "5" ]; then
       func_send_discord "cookies"
-      __info "Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
+      __info "Can not detect member-only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel $_url"
     fi
   fi
 
-  if [[ "$_url" =~ $regex_community ]] ; then
+  if [[ "$_url" =~ $regex_membership ]] ; then
     METADATA_CURL_RAW=""
     PLAYABILITY="invalid"
-    __debug "Skip curl check because no VideoID found in member-only posts or cookies_membership expired."
+    __debug "Skip curl check because no scheduled member-only VideoID found or cookies_membership.txt expired."
 
   else
 
@@ -597,11 +598,6 @@ function func_check_state() {
       if [ "$PLAYABILITY" == "OK" ]; then
         # Then check if it's a channel URL
         if [ "$DL_TYPE" == "channel" ]; then
-          if [ "$DL_OPTION" == "membership" ]; then
-            # Skip download member only stream if it is not live
-            PLAYABILITY="invalid"
-            __debug "Detected member only stream but it not live, skip download"
-          else
           # Check if the streamer is streaming privately.
             __info "$(__yellow "/live redirects to /, event mode or streaming privately?")"
           fi
@@ -1163,7 +1159,7 @@ function func_send_discord() {
         }'
       elif [ "$_type" == "cookies" ]; then
         local _body='{
-          "content": " :warning: Can not detect member only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel '"$_url"'"
+          "content": " :warning: Can not detect member-only stream, make sure your cookies_membership.txt is not expired and from an account joined membership of channel '"$_url"'"
         }'
       fi
       __info "Sending Discord notification..."
@@ -1715,7 +1711,7 @@ Examples:
   live-dl UC1opHUrw8rvnsadT-iGp7Cg
   live-dl https://youtu.be/4ZBQ1W8jV9A
 
-  Monitor community/membership tab of specific channel (to detect member only stream), download stream when channel goes live:
+  Monitor community/membership tab of specific Youtube channel (to detect member-only stream), download stream when channel goes live:
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/community
   live-dl https://www.youtube.com/channel/UC1opHUrw8rvnsadT-iGp7Cg/membership
 
