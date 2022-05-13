@@ -1437,6 +1437,8 @@ function func_archive_chat() {
 }
 
 function func_download_youtube() {
+  __debug "start func_download_youtube"
+
   __info "Start downloading $FILENAME"
 
   # Log tail inspired by https://github.com/printempw/live-stream-recorder
@@ -1525,6 +1527,8 @@ function func_download_youtube() {
 }
 
 function func_download_twitch() {
+  __debug "start func_download_twitch"
+
   __info "Start downloading $FILENAME"
 
   # Log tail inspired by https://github.com/printempw/live-stream-recorder
