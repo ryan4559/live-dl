@@ -599,12 +599,12 @@ function func_check_state() {
         # Then check if it's a channel URL
         if [ "$DL_TYPE" == "channel" ]; then
           # Check if the streamer is streaming privately.
-            __info "$(__yellow "/live redirects to /, event mode or streaming privately?")"
-          fi
-        else
-          CONTENT_STATE="video"
+          __info "$(__yellow "/live redirects to /, event mode or streaming privately?")"
         fi
+      else
+        CONTENT_STATE="video"
       fi
+    fi
 
       # Then check if the stream just goes offline
       if [ "$PLAYABILITY" == "LIVE_STREAM_OFFLINE" ]; then
