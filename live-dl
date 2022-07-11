@@ -405,9 +405,12 @@ function func_check_membership() {
 
   if [[ $TAB_URL =~ "/membership" ]] ; then
 
-    # Take VideoID from first SCHEDULED member-only video(s) in Membership tab
+    local TIME_NOW_MEMBER=`date +%s`
+    local TIME_NOW_MEMBER=`expr $TIME_NOW_MEMBER + 3600`
+
+    # Take VideoID from first SCHEDULED member-only video(s) in Membership tab, scheduled time less than 1h
     local _VIDEO_ID=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^>]*}\);.*/\1/p' | jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[4].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[] | \
-    select((.videoRenderer!=null) and (.videoRenderer.lengthText==null))' | \
+    select((.videoRenderer!=null) and (.videoRenderer.lengthText==null) and (.videoRenderer.upcomingEventData.startTime<"'$TIME_NOW_MEMBER'"))' | \
      jq -r '.videoRenderer.videoId'| head -1`
 
     if [ -n "$_VIDEO_ID" ]; then
