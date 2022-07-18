@@ -1452,7 +1452,7 @@ function func_download_youtube() {
         FORTMAT_OPTION="best"
       fi
 
-      python ./ytarchive.py \
+      ytarchive \
         --no-wait \
         -o "${OUTPUT_PATH}" \
         -c "$COOKIES_FILE" \

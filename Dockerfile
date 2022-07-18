@@ -14,21 +14,26 @@ RUN apk add --no-cache \
   bash  \
   curl  \
   perl  \
-	coreutils \
-	grep \
-	curl
+  coreutils \
+  grep \
+  curl
 
-RUN pip3 install yq
+RUN pip install --no-cache-dir bottle youtube-dl chat-downloader yq
 
-RUN pip install bottle youtube-dl chat-downloader
+WORKDIR /usr/local/bin/
+ADD https://github.com/Kethsar/ytarchive/releases/download/latest/ytarchive_linux_amd64.zip /usr/local/bin/
+RUN unzip ytarchive_linux_amd64.zip && rm -rf ytarchive_linux_amd64.zip
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
-
-COPY . /usr/src/app
+COPY live-dl autoscript.sh youtube-dl-server.py index.html /usr/src/app
+COPY /config /usr/src/app/config
+COPY /static /usr/src/app/static
 RUN chmod a+x /usr/src/app/live-dl \
 	&& chmod +x /usr/src/app/autoscript.sh \
 	&& chmod +x /usr/src/app/config/
+RUN ln -s /usr/src/app/live-dl /usr/local/bin/live-dl && \
+	ln -s /usr/src/app/config /usr/local/bin/config
 
 EXPOSE 8080
 

@@ -54,16 +54,6 @@ def q_put():
     return {"success": True, "url": url, "options": options}
 
 @app.route("/update", method="GET")
-def update():
-    command = ["pip", "install", "--no-cache-dir", "--upgrade" , "--quiet", "youtube-dl", "pytchat"]
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    output, error = proc.communicate()
-    return {
-        "output": output.decode('ascii'),
-        "error":  error.decode('ascii')
-    }
-
 def dl_worker():
     while not done:
         url, options = dl_q.get()
@@ -124,10 +114,6 @@ done = False
 dl_thread = Thread(target=dl_worker)
 dl_thread.start()
 
-print("Updating youtube-dl and pytchat to the newest version")
-updateResult = update()
-print(updateResult["output"])
-print(updateResult["error"])
 
 print("Started download thread")
 
