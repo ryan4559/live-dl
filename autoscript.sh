@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Auto install last version of youtube-dl, chat-downloader and twspace-dl for docker image
-pip install --no-cache-dir --upgrade --quiet youtube-dl chat-downloader twspace-dl
+# Auto install last version of youtube-dl and chat-downloader for docker image
+pip install --no-cache-dir --upgrade --quiet youtube-dl chat-downloader
 
 # Auto install last version of ytarchive
-curl -o /usr/src/app/ytarchive.py https://raw.githubusercontent.com/Kethsar/ytarchive/master/ytarchive.py
+curl -sLo /usr/src/app/ytarchive.zip https://github.com/Kethsar/ytarchive/releases/download/latest/ytarchive_linux_amd64.zip
+unzip -q -o /usr/src/app/ytarchive.zip -d /usr/local/bin
+rm /usr/src/app/ytarchive.zip
 
 # Run main script
 bash /usr/src/app/config/auto.sh
