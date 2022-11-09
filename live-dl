@@ -17,7 +17,7 @@
 # - jq
 # - youtube-dl
 # - yq (python-yq)
-# - pytchat
+# - chat-downloader
 
 #
 # To-do list
@@ -426,7 +426,7 @@ function func_check_membership() {
   else
     local TAB_URL2=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[5].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
     __debug "Tab Membership 2nd check: $TAB_URL2"
-    if [[ $TAB_URL =~ "/membership" ]] ; then
+    if [[ $TAB_URL2 =~ "/membership" ]] ; then
 
       local TIME_NOW_MEMBER=`date +%s`
       local TIME_NOW_MEMBER=`expr $TIME_NOW_MEMBER + 3600`
