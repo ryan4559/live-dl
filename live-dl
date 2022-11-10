@@ -446,11 +446,12 @@ function func_check_membership() {
         # Reset counter
         retry_membership=0
       fi
+    else
+      # Retry and loop
+      retry_membership=$((retry_membership+1))
+      __info "Retrying to detect member-only stream. $retry_membership time(s) "
+      sleep 20
     fi
-    # Retry and loop
-    retry_membership=$((retry_membership+1))
-    __info "Retrying to detect member-only stream. $retry_membership time(s) "
-    sleep 20
   fi
 }
 
