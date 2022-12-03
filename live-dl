@@ -235,17 +235,19 @@ function func_create_url() {
     __info "YouTube URL detected"
     DL_PLATFORM="YouTube"
 
-    if [[ "$_url" =~ "/channel" && "$_url" =~ "/live" ]]; then
+    if [[ "$_url" =~ "/channel" && "$_url" =~ "/live" ]] || [[ "$_url" =~ "/@" && "$_url" =~ "/live" ]]; then
       __info "YouTube channel detected"
       DL_URL="$_url"
       DL_TYPE="channel"
 
-    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" && ! "$_url" =~ "/membership" ]]; then
+    elif [[ "$_url" =~ "/channel" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" && ! "$_url" =~ "/membership" ]] \
+    || [[ "$_url" =~ "/@" && ! "$_url" =~ "/live" && ! "$_url" =~ "/community" && ! "$_url" =~ "/membership" ]]; then
       __info "YouTube video detected (alt)"
       DL_URL="$_url/live"
       DL_TYPE="channel"
 
-    elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]] || [[ "$_url" =~ "/channel" && "$_url" =~ "/membership" ]]; then
+    elif [[ "$_url" =~ "/channel" && "$_url" =~ "/community" ]] || [[ "$_url" =~ "/channel" && "$_url" =~ "/membership" ]] \
+    || [[ "$_url" =~ "/@" && "$_url" =~ "/community" ]] || [[ "$_url" =~ "/@" && "$_url" =~ "/membership" ]] ; then
       __info "YouTube membership detected (member-only stream)"
       DL_URL="$_url"
       DL_TYPE="channel"
@@ -492,14 +494,16 @@ function func_check_state() {
 
   # Replace community URL by membership URL
   local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/community"
-  if [[ "$_url" =~ $regex_membership ]] ; then
+  local regex_membership2="https:\/\/www.youtube.com\/@(.+)\/community"
+  if [[ "$_url" =~ $regex_membership ]] || [[ "$_url" =~ $regex_membership2 ]]; then
     _url=${_url/community/membership}
   fi
 
   # If url is Youtube community page,it need redirect channel page check to
   # video page after got the specific video ID.
   local regex_membership="https:\/\/www.youtube.com\/channel\/(.+)\/membership"
-  if [[ "$_url" =~ $regex_membership ]] ; then
+  local regex_membership2="https:\/\/www.youtube.com\/@(.+)\/membership"
+  if [[ "$_url" =~ $regex_membership ]] || [[ "$_url" =~ $regex_membership2 ]]; then
     # Add a counter
     local retry_membership=0
     func_check_membership
@@ -522,7 +526,7 @@ function func_check_state() {
     fi
   fi
 
-  if [[ "$_url" =~ $regex_membership ]] ; then
+  if [[ "$_url" =~ $regex_membership ]] || [[ "$_url" =~ $regex_membership2 ]]; then
     METADATA_CURL_RAW=""
     PLAYABILITY="invalid"
     __debug "Skip curl check because no scheduled member-only VideoID found or cookies_membership.txt expired."
