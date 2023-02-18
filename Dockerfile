@@ -18,7 +18,7 @@ RUN apk add --no-cache \
   grep \
   curl
 
-RUN pip install --no-cache-dir bottle youtube-dl chat-downloader yq
+RUN pip install --no-cache-dir bottle yt-dlp chat-downloader yq
 
 WORKDIR /usr/local/bin/
 ADD https://github.com/Kethsar/ytarchive/releases/download/latest/ytarchive_linux_amd64.zip /usr/local/bin/

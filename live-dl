@@ -15,11 +15,15 @@
 # - exiv2
 # - ffmpeg
 # - jq
-# - youtube-dl
+# - yt-dlp
 # - yq (python-yq)
 # - chat-downloader
 
-#
+# 2023.2.18
+# youtube-dl no longer can get "uploader id" because Youtube change it to Handle URL
+# and youtube-dl no longer release new update since 2021.12.17
+# so i will replace youtube-dl with yt-dlp
+
 # To-do list
 #
 # - [x] dependencies check
@@ -48,7 +52,7 @@
 #
 # Variables
 #
-USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36"
+USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
 IMAGE_PROXY_BASE="https://experiments.sparanoid.net/imageproxy/"
 
 #
@@ -534,7 +538,7 @@ function func_check_state() {
   else
 
     # Passing useragent causes youtube to return the content to one line. Then grep died.
-    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
+    local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
 
   fi
   # Extract metadata from fetched page
@@ -685,7 +689,7 @@ function func_check_state() {
     if ([ "$CONTENT_STATE" != "offline" ] && [ "$_mode" != "lazy" ]) || \
       ([ "$CONTENT_STATE" == "offline" ] && [ "$_mode" == "lazy" ])
     then
-      __info "Re-checking via youtube-dl..."
+      __info "Re-checking via yt-dlp..."
 
       local _url=$(func_get_actual_video_url_of_live "$_url")
       __info "Get real video url: $_url"
@@ -693,7 +697,7 @@ function func_check_state() {
       if [ "$_youtube_dl_address_param" ]; then
         __info "using address: ${_youtube_dl_address_param##* }"
       fi
-      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
+      METADATA=`yt-dlp --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
         --skip-download --print-json --referer 'https://www.youtube.com/feed/subscriptions' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
         ${_youtube_dl_address_param} \
@@ -701,7 +705,7 @@ function func_check_state() {
 
       # Check if returns nothing
       if [ ! -z "$METADATA" ]; then
-        __debug "Got valid youtube-dl metadata"
+        __debug "Got valid yt-dlp metadata"
 
         # Check if it's a valid JSON return
         if [[ "$METADATA" == '{'* ]]; then
@@ -721,11 +725,11 @@ function func_check_state() {
           if [ "$_is_live" == "true" ]; then
             __debug "Got state: live";
             CONTENT_STATE="live"
-          elif [ "$_is_live" == "null" ]; then
+          elif [ "$_is_live" == "null" ]||[ "$_is_live" == "false" ]; then
             __debug "Got state: video";
             CONTENT_STATE="video"
           else
-            __info "youtube-dl does not returns a valid state";
+            __info "yt-dlp does not returns a valid state";
             CONTENT_STATE="invalid"
           fi
         else
@@ -747,7 +751,7 @@ function func_check_state() {
           fi
         fi
       else
-        __info "$(__yellow "Second check failed, not valid youtube-dl metadata")"
+        __info "$(__yellow "Second check failed, not valid yt-dlp metadata")"
         CONTENT_STATE="invalid"
       fi
 
@@ -771,8 +775,7 @@ function func_check_state_twitch() {
     __info "using address: ${address_param##* }"
   fi
 
-  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" -s "$_url")
-
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
   if [[ "$_body" == *"isLiveBroadcast"* ]]; then
 
     METADATA_CURL=`echo "$_body" | sed 's/^.*application\/ld+json">//' | sed 's/<\/script.*$//' | jq -r . `
@@ -791,20 +794,20 @@ function func_check_state_twitch() {
     fi
 
     if ([ "$CONTENT_STATE" == "live" ] && [ "$_mode" != "lazy" ]); then
-      __info "Re-checking via youtube-dl..."
+      __info "Re-checking via yt-dlp..."
 
       local _youtube_dl_address_param=$(func_gen_youtube_dl_address_param)
       if [ "$_youtube_dl_address_param" ]; then
         __info "using address: ${_youtube_dl_address_param##* }"
       fi
-      METADATA=`youtube-dl --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
+      METADATA=`yt-dlp --ignore-config --no-playlist --playlist-items 0 --cookies "$COOKIES_FILE" \
         --skip-download --print-json --referer 'https://www.twitch.tv/directory' \
         -o '%(upload_date)s %(title)s (%(id)s).%(ext)s' \
         ${_youtube_dl_address_param} \
         "$_url" 2>&1`
 
       if [ ! -z "$METADATA" ]; then
-        __debug "Got valid youtube-dl metadata"
+        __debug "Got valid yt-dlp metadata"
 
         if [[ "$METADATA" == '{'* ]]; then
           # use 2>/dev/null to ignore errors line when use jq
@@ -836,7 +839,7 @@ function func_check_state_twitch() {
             __debug "Got state: live";
             CONTENT_STATE="live"
           else
-            __info "youtube-dl does not returns a valid state";
+            __info "yt-dlp does not returns a valid state";
             CONTENT_STATE="invalid"
           fi
         else
@@ -861,7 +864,7 @@ function func_check_state_twitch() {
           fi
         fi
       else
-        __info "$(__yellow "Second check failed, not valid youtube-dl metadata")"
+        __info "$(__yellow "Second check failed, not valid yt-dlp metadata")"
         CONTENT_STATE="invalid"
       fi
 
@@ -1508,7 +1511,7 @@ function func_download_youtube() {
         FORTMAT_OPTION="-f 91 -x"
       fi
 
-  	youtube-dl \
+  	yt-dlp \
   		--ignore-config \
       --hls-prefer-native \
   		--hls-use-mpegts \
@@ -1534,7 +1537,7 @@ function func_download_youtube() {
       # Or you can add the following parameters to handle it using youtube-dl automatically:
       #   --embed-thumbnail # requires AtomicParsley
       #   --add-metadata
-      youtube-dl \
+      yt-dlp \
         --ignore-config \
         --download-archive archive.txt \
         --embed-thumbnail \
@@ -1548,7 +1551,7 @@ function func_download_youtube() {
         -o "$OUTPUT_PATH.%(ext)s" \
         "${WEBPAGE_URL}" >> "$LOG_PATH" 2>&1
     else
-      youtube-dl \
+      yt-dlp \
         --ignore-config \
         --external-downloader aria2c \
         --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
@@ -1573,7 +1576,7 @@ function func_download_twitch() {
   __info "Logging: tail -f \"$LOG_PATH\""
 
   if [ "$CONTENT_STATE" == "live" ]; then
-  	youtube-dl \
+  	yt-dlp \
   		--ignore-config \
       --hls-prefer-native \
   		--hls-use-mpegts \

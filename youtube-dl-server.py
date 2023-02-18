@@ -5,7 +5,7 @@ import subprocess
 from queue import Queue
 from bottle import route, run, Bottle, request, static_file
 from threading import Thread
-import youtube_dl
+from yt_dlp import YoutubeDL
 from pathlib import Path
 from collections import ChainMap
 
@@ -105,7 +105,7 @@ def get_ydl_options(request_options):
 
 
 def download(url, request_options):
-    with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
+    with YoutubeDL(get_ydl_options(request_options)) as ydl:
         ydl.download([url])
 
 

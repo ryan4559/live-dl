@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Auto install last version of youtube-dl and chat-downloader for docker image
-pip install --no-cache-dir --upgrade --quiet youtube-dl chat-downloader
+pip install --no-cache-dir --upgrade --quiet yt-dlp chat-downloader
 
 # Auto install last version of ytarchive
 curl -sLo /usr/src/app/ytarchive.zip https://github.com/Kethsar/ytarchive/releases/download/latest/ytarchive_linux_amd64.zip
