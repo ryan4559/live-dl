@@ -1520,7 +1520,7 @@ function func_download_youtube() {
         --embed-thumbnail \
         --add-metadata \
         --external-downloader aria2c \
-        --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
+        --external-downloader-args '-j 16 --retry-wait 10 --max-tries 10' \
         -f "$FORTMAT_OPTION" \
         --retries 30 \
 		    --cookies "$COOKIES_FILE" \
@@ -1531,7 +1531,7 @@ function func_download_youtube() {
       yt-dlp \
         --ignore-config \
         --external-downloader aria2c \
-        --external-downloader-args '-j 16 -s 16 -x 16 -k 1M --retry-wait 10 --max-tries 10' \
+        --external-downloader-args '-j 16 --retry-wait 10 --max-tries 10' \
         -f "$FORTMAT_OPTION" \
         --retries 30 \
 		    --cookies "$COOKIES_FILE" \
