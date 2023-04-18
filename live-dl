@@ -406,16 +406,17 @@ function func_check_membership() {
   local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
   # Check cookies_membership is valid by checking if the Membership tab exists or not.
   # All posts in Mebership tab are member-only.
-  local TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[6].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
-  __debug "Tab Membership 1st check: $TAB_URL"
+  # Since 23/04/18, Youtube added new "Release" tab in user channel. Changed new jq query, LiveDL will only catch json data in "Membership" tab, ignore other tabs. If it null => Cookies expire.
+  local MEMBER_JSON=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[] |\
+                                          select(.tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | endswith("/membership"))' 2>/dev/null`
 
-  if [[ $TAB_URL =~ "/membership" ]] ; then
+  if [[ ! -z $(printf '%s' $MEMBER_JSON) ]] ; then
 
     local TIME_NOW_MEMBER=`date +%s`
-    local TIME_NOW_MEMBER=`expr $TIME_NOW_MEMBER + 3600`
+    local TIME_NOW_MEMBER=`expr $TIME_NOW_MEMBER + 7200`
 
-    # Take VideoID from first SCHEDULED member-only video(s) in Membership tab, scheduled time less than 1h
-    local _VIDEO_ID=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^>]*}\);.*/\1/p' | jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[6].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[] | \
+    # Take VideoID from first SCHEDULED member-only video(s) in Membership tab, scheduled time less than 2h
+    local _VIDEO_ID=`echo "$MEMBER_JSON" | jq -r '.tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[] | \
     select((.videoRenderer!=null) and (.videoRenderer.lengthText==null) and (.videoRenderer.upcomingEventData.startTime<"'$TIME_NOW_MEMBER'"))' | \
      jq -r '.videoRenderer.videoId'| head -1`
 
@@ -430,34 +431,10 @@ function func_check_membership() {
       retry_membership=0
     fi
   else
-    local TAB_URL2=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[5].tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | select(.!=null)'`
-    __debug "Tab Membership 2nd check: $TAB_URL2"
-    if [[ $TAB_URL2 =~ "/membership" ]] ; then
-
-      local TIME_NOW_MEMBER=`date +%s`
-      local TIME_NOW_MEMBER=`expr $TIME_NOW_MEMBER + 3600`
-
-      # Take VideoID from first SCHEDULED member-only video(s) in Membership tab, scheduled time less than 1h
-      local _VIDEO_ID=`echo "$_body" | sed -n 's/.*var ytInitialData = \({[^>]*}\);.*/\1/p' | jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[5].tabRenderer.content.sectionListRenderer.contents[1].itemSectionRenderer.contents[] | \
-      select((.videoRenderer!=null) and (.videoRenderer.lengthText==null) and (.videoRenderer.upcomingEventData.startTime<"'$TIME_NOW_MEMBER'"))' | \
-       jq -r '.videoRenderer.videoId'| head -1`
-
-      if [ -n "$_VIDEO_ID" ]; then
-        _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
-        __debug "Detected member-only stream $_url"
-        # Reset counter
-        retry_membership=0
-      else
-        __debug "LiveDL can detect Membership tab but can not found any scheduled member-only video(s) in Membership tab."
-        # Reset counter
-        retry_membership=0
-      fi
-    else
-      # Retry and loop
-      retry_membership=$((retry_membership+1))
-      __info "Retrying to detect member-only stream. $retry_membership time(s) "
-      sleep 20
-    fi
+    # Retry and loop
+    retry_membership=$((retry_membership+1))
+    __info "Retrying to detect member-only stream. $retry_membership time(s) "
+    sleep 20
   fi
 }
 

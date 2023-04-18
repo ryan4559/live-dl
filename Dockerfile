@@ -15,8 +15,7 @@ RUN apk add --no-cache \
   curl  \
   perl  \
   coreutils \
-  grep \
-  curl
+  grep
 
 RUN pip install --no-cache-dir bottle yt-dlp chat-downloader yq
 
