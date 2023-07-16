@@ -438,6 +438,47 @@ function func_check_membership() {
   fi
 }
 
+
+# Since 2023/07/13 (?), youtube no longer redirecting /live if more than 1 stream is live or scheduled
+# This func created to get videoId have status "LIVE" from streams/live tab or scheduled stream which scheduled time less than 2h
+function func_check_newlivestream_ytb() {
+if ([ "$DL_TYPE" == "channel" ] && [ "$DL_PLATFORM" == "YouTube" ]); then
+  __debug "start func_check_newlivestream_ytb"
+
+  local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
+
+  local LIVE_TAB_URL=`echo "$_body" |sed -n 's/.*var ytInitialData = \({[^<]*}\);.*/\1/p'| jq -r '.contents.twoColumnBrowseResultsRenderer.tabs[] |\
+  select(.tabRenderer.endpoint.commandMetadata.webCommandMetadata.url | endswith("/streams"))' 2>/dev/null`
+
+  local _VIDEO_ID=`echo "$LIVE_TAB_URL" | jq -r '.tabRenderer.content.richGridRenderer.contents[] |\
+  select(.richItemRenderer.content.videoRenderer.thumbnailOverlays[0].thumbnailOverlayTimeStatusRenderer.style=="LIVE")' |\
+  jq -r '.richItemRenderer.content.videoRenderer.videoId' | head -1`
+
+  if [ -n "$_VIDEO_ID" ]; then
+    _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+    __debug "Detected live stream $_url"
+
+  else
+
+    __debug "Can not detect living stream, checking schedule streams"
+
+    local TIME_NOW_LIVE=`date +%s`
+    local TIME_NOW_LIVE=`expr $TIME_NOW_LIVE + 7200`
+
+    local _VIDEO_ID=`echo "$LIVE_TAB_URL" | jq -r '.tabRenderer.content.richGridRenderer.contents[] |\
+    select((.richItemRenderer.content.videoRenderer.videoId!=null) and (.richItemRenderer.content.videoRenderer.lengthText == null) and (.richItemRenderer.content.videoRenderer.upcomingEventData.startTime<"'$TIME_NOW_LIVE'"))' |\
+    jq -r '.richItemRenderer.content.videoRenderer.videoId' | head -1`
+
+    if [ -n "$_VIDEO_ID" ]; then
+      _url="https://www.youtube.com/watch?v=$_VIDEO_ID"
+      __debug "Detected live stream $_url"
+    else
+      __debug "Can not detect scheduled stream which scheduled time less than 2h"
+    fi
+  fi
+fi
+}
+
 function func_check_state() {
   local _url=$1
   local _mode=$2
@@ -513,6 +554,8 @@ function func_check_state() {
     __debug "Skip curl check because no scheduled member-only VideoID found or cookies_membership.txt expired."
 
   else
+
+ func_check_newlivestream_ytb
 
     # Passing useragent causes youtube to return the content to one line. Then grep died.
     local _body=$(curl -s --compressed -H "User-Agent: $USER_AGENT" $address_param -b "$COOKIES_FILE" "$_url")
