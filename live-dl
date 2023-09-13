@@ -683,7 +683,7 @@ function func_check_state() {
   else
     # Nov 14, 2021: YouTube no longer retuns a valid JSON response for /live channel URL when the
     # channel is not live. So just silent fail here.
-    if ([ "$DL_TYPE" == "channel" ] && [ "$DL_PLATFORM" == "YouTube" ]); then
+    if ([ "$DL_TYPE" == "channel" ] && [ "$DL_PLATFORM" == "YouTube" ] && [ $DL_OPTION != "membership" ]); then
 
       # Youtube channel URL will be redirect to consent.youtube.com if you come from EU countries
       local _consent_URL=`echo "$_body" | grep -E -io 'href="[^\"]+"' | awk -F\" '{print$2}' | head -1`
