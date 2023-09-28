@@ -1549,7 +1549,8 @@ function func_download_youtube() {
   		--hls-use-mpegts \
       --no-part \
   		--fragment-retries 30 \
-      --retries 60 \
+      --retries 30 \
+      --live-from-start \
       $FORTMAT_OPTION \
   		--cookies "$COOKIES_FILE" \
   		-o "${OUTPUT_PATH}${EXTENSION}" \
