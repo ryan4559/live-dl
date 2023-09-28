@@ -1,0 +1,43 @@
+FROM python:alpine
+
+RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.17/community' >> /etc/apk/repositories \
+	&& apk add "ffmpeg==5.1.3-r0"
+
+RUN apk add --no-cache aria2 \
+	&& adduser -D aria2 \
+	&& mkdir -p /etc/aria2 \
+	&& mkdir -p /aria2down \
+	&& rm -rf /var/lib/apk/lists/*
+
+RUN apk add --no-cache \
+  tzdata \
+  jq  \
+  exiv2  \
+  bash  \
+  curl  \
+  perl  \
+  coreutils \
+  grep
+
+RUN pip install --no-cache-dir bottle yt-dlp chat-downloader yq
+
+WORKDIR /usr/local/bin/
+ADD https://github.com/Kethsar/ytarchive/releases/download/latest/ytarchive_linux_amd64.zip /usr/local/bin/
+RUN unzip ytarchive_linux_amd64.zip && rm -rf ytarchive_linux_amd64.zip
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+COPY live-dl autoscript.sh youtube-dl-server.py index.html /usr/src/app
+COPY /config /usr/src/app/config
+COPY /static /usr/src/app/static
+RUN chmod a+x /usr/src/app/live-dl \
+	&& chmod +x /usr/src/app/autoscript.sh \
+	&& chmod +x /usr/src/app/config/
+RUN ln -s /usr/src/app/live-dl /usr/local/bin/live-dl && \
+	ln -s /usr/src/app/config /usr/local/bin/config
+
+EXPOSE 8080
+
+VOLUME ["/youtube-dl"]
+
+CMD [ "/usr/src/app/autoscript.sh" ]

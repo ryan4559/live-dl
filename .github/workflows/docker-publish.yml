@@ -21,6 +21,14 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: ./Dockerfile
+            tags: latest
+          - dockerfile: ./Dockerfile-ffmpeg5.1
+            tags: ffmpeg5.1
 
     steps:
       - name: Checkout repository
@@ -57,5 +65,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }},${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
+          file: ${{ matrix.dockerfile }}
+          tags: ${{ steps.meta.outputs.tags }},${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ matrix.tags }}
           labels: ${{ steps.meta.outputs.labels }}
