@@ -27,8 +27,8 @@ jobs:
         include:
           - dockerfile: ./Dockerfile
             tags: latest
-          - dockerfile: ./Dockerfile-ffmpeg5.1
-            tags: ffmpeg5.1
+          - dockerfile: ./Dockerfile-ffmpeg6
+            tags: ffmpeg6
 
     steps:
       - name: Checkout repository
