@@ -1,7 +1,5 @@
 [![Docker Publish](https://github.com/herowinb/live-dl/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/herowinb/live-dl/actions/workflows/docker-publish.yml) [![Docker Pulls](https://img.shields.io/docker/pulls/herowinb/live-dl.svg)](https://hub.docker.com/r/herowinb/live-dl)
 
-If your docker container run too slow after Youtube live stream finish (because ffmpeg 6.0+ mux audio and video too slow), please select tag ffmpeg5.1 when download the image.
-
 # [Bug report](https://github.com/herowinb/live-dl/issues/new/choose)
 
 # `New feature`
