@@ -1,7 +1,6 @@
-FROM python:alpine
+FROM python:3.11.7-alpine3.17
 
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.17/community' >> /etc/apk/repositories \
-	&& apk add "ffmpeg==5.1.4-r0"
+RUN apk add ffmpeg==5.1.4-r0
 
 RUN apk add --no-cache aria2 \
 	&& adduser -D aria2 \
