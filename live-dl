@@ -153,6 +153,11 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
+    --badword)
+      PARAM_BADWORD="$2"
+      shift
+      shift
+      ;;
     -i|--interval)
       PARAM_INTERVAL="$2"
       shift
@@ -634,18 +639,26 @@ function func_check_state() {
         _FILTER="${_FILTER//\\}"
 
         __debug "User filter found: "$FILTER""
+        __debug "User filter found: "$BADWORD""
         __debug "User filter found (Keyword.txt): "$_FILTER""
 
-        #compares FULLTITLE with keyword
-        if [ ! -z "$FILTER" ] && [[ "$FULLTITLE" =~ $FILTER ]]; then
-          __debug "Video title matched, mark as downloadable..."
-          CONTENT_STATE="live"
-        elif [[ "$FULLTITLE" =~ $_FILTER ]]; then
-          __debug "Video title matched, mark as downloadable..."
-          CONTENT_STATE="live"
+        #skip if found badword in title
+        if [ ! -z "$BADWORD" ] && [[ "$FULLTITLE" =~ $BADWORD ]]; then
+        CONTENT_STATE="invalid"
+        __info "Video title is matched badword, skipping and continue monitoring..."
+
         else
-          CONTENT_STATE="invalid"
-          __info "Video title is not match with keyword, skipping and continue monitoring..."
+          #compares FULLTITLE with keyword
+          if [ ! -z "$FILTER" ] && [[ "$FULLTITLE" =~ $FILTER ]]; then
+            __debug "Video title matched, mark as downloadable..."
+            CONTENT_STATE="live"
+          elif [[ "$FULLTITLE" =~ $_FILTER ]]; then
+            __debug "Video title matched, mark as downloadable..."
+            CONTENT_STATE="live"
+          else
+            CONTENT_STATE="invalid"
+            __info "Video title is not match with keyword, skipping and continue monitoring..."
+          fi
         fi
       else
       __debug "No keyword filter run, mark as downloadable..."
@@ -1858,6 +1871,7 @@ CONFIG_ARCHIVE_CHAT=`echo $CONFIG_RAW | jq -r '.config.archive_chat | select(.!=
 CONFIG_ARCHIVE_CHAT_MODE=`echo $CONFIG_RAW | jq -r '.config.archive_chat_mode | select(.!=null)'`
 CONFIG_KEYWORD_FILTER=`echo $CONFIG_RAW | jq -r '.config.keyword_filter | select(.!=null)'`
 CONFIG_FILTER=`echo $CONFIG_RAW | jq -r '.config.filter | select(.!=null)'`
+CONFIG_BADWORD=`echo $CONFIG_RAW | jq -r '.config.badword | select(.!=null)'`
 CONFIG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.interval | select(.!=null)'`
 CONFIG_LONG_INTERVAL=`echo $CONFIG_RAW | jq -r '.config.long_interval | select(.!=null)'`
 CONFIG_SKIP_METADATA=`echo $CONFIG_RAW | jq -r '.config.skip_metadata | select(.!=null)'`
@@ -1892,6 +1906,7 @@ ARCHIVE_CHAT="${PARAM_ARCHIVE_CHAT:-$CONFIG_ARCHIVE_CHAT}"
 ARCHIVE_CHAT_MODE="${PARAM_ARCHIVE_CHAT_MODE:-$CONFIG_ARCHIVE_CHAT_MODE}"
 KEYWORD_FILTER="${PARAM_KEYWORD_FILTER:-$CONFIG_KEYWORD_FILTER}"
 FILTER="${PARAM_FILTER:-$CONFIG_FILTER}"
+BADWORD="${PARAM_BADWORD:-$CONFIG_BADWORD}"
 INTERVAL="${PARAM_INTERVAL:-$CONFIG_INTERVAL}"
 LONG_INTERVAL="${PARAM_LONG_INTERVAL:-$CONFIG_LONG_INTERVAL}"
 SKIP_METADATA="${PARAM_SKIP_METADATA:-$CONFIG_SKIP_METADATA}"
