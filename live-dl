@@ -1676,13 +1676,15 @@ function func_finalize_download() {
     # Check if thumbnail is available (has 200 HTTP response code)
     local _thumb_resp=$(curl -qSsfw "%{http_code}" $THUMBNAIL_CALC -o /dev/null)
 
-    if [ "$_thumb_resp" != "200" ]; then
-      __info "No high-res thumbnial (maxresdefault.jpg), failback to hqdefault.jpg"
-      THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg"
-      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
-    else
-      curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
-    fi
+    if [ "$_thumb_resp" != "404" ]; then
+    # 404 error, so no thumbnail. The Video should be privated or deleted. Skip redownload thumbnail.
+      if [ "$_thumb_resp" != "200" ]; then
+        __info "No high-res thumbnial (maxresdefault.jpg), failback to hqdefault.jpg"
+        THUMBNAIL_CALC="https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg"
+        curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
+      else
+        curl -s "$THUMBNAIL_CALC" -o "$OUTPUT_PATH.jpg"
+      fi
   fi
 
   if [ $SKIP_METADATA == "false" ]; then
