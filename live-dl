@@ -698,10 +698,11 @@ function func_check_state() {
     # channel is not live. So just silent fail here.
     if ([ "$DL_TYPE" == "channel" ] && [ "$DL_PLATFORM" == "YouTube" ] ); then
 
-      if ([ $DL_OPTION != "membership" ]); then
+      if ([ "$DL_OPTION" != "membership" ]); then
         # Youtube channel URL will be redirect to consent.youtube.com if you come from EU countries
+
         local _consent_URL=`echo "$_body" | grep -E -io 'href="[^\"]+"' | awk -F\" '{print$2}' | head -1`
-        if [[ $_consent_URL = "https://consent.youtube.com/" ]] || [ -z $_body ]  ; then
+        if [ $_consent_URL = "https://consent.youtube.com/" ] || [ -z "$_body" ]; then
           __info "Youtube redirected to consent.youtube.com.
           Live-dl need cookies to detect live streams in Youtube channel page.
           For more information please read here: https://github.com/herowinb/live-dl/issues/23#issuecomment-1642585118"
